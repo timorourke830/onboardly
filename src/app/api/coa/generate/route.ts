@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
       console.log("[POST /api/coa/generate] Found", documents.length, "classified documents");
 
       classifiedDocuments = documents
-        .filter((doc) => doc.category && doc.category !== "other")
-        .map((doc) => ({
+        .filter((doc: { category: string; subcategory: string | null; year: number | null; metadata: unknown }) => doc.category && doc.category !== "other")
+        .map((doc: { category: string; subcategory: string | null; year: number | null; metadata: unknown }) => ({
           category: doc.category as ClassifiedDocument["category"],
           subcategory: doc.subcategory ?? undefined,
           year: doc.year ?? undefined,

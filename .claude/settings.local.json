@@ -12,7 +12,10 @@
       "Bash(timeout /t 2 /nobreak)",
       "Bash(curl:*)",
       "Bash(npx tsc:*)",
-      "Bash(dir \"C:\\\\Dev\\\\onboardly\\\\src\\\\data\\\\coa-templates\")"
+      "Bash(dir \"C:\\\\Dev\\\\onboardly\\\\src\\\\data\\\\coa-templates\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ]
   }
 }
