@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  projects      Project[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Project {
+  id           String     @id @default(cuid())
+  name         String
+  businessName String
+  businessType String?
+  industry     String     @default("general")
+  status       String     @default("uploading") // uploading, classifying, reviewing, complete
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents    Document[]
+  coa          ChartOfAccounts?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  category    String   @default("other") // bank_statement, receipt, invoice, tax_document, payroll, contract, other
+  subcategory String?
+  confidence  Float    @default(0)
+  year        Int?
+  isReviewed  Boolean  @default(false)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChartOfAccounts {
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  industry          String   @default("general")
+  accounts          Json     // Array of Account objects
+  suggestedAccounts Json?    // Array of AccountSuggestion objects
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
