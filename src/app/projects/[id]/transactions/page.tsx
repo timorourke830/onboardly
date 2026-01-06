@@ -3,16 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowRight,
-  FileText,
-  RefreshCw,
-  Download,
-} from "lucide-react";
+import { FileText, RefreshCw, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionTable, ExtractionProgress } from "@/components/transactions";
+import { WorkflowNav } from "@/components/workflow";
 import { useToast } from "@/components/ui/toast";
 import { Transaction } from "@/types/transaction";
 import { Account } from "@/types/coa";
@@ -138,8 +133,6 @@ export default function TransactionsPage() {
         prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
       );
 
-      // TODO: Save to server
-      // For now, just show toast
       addToast({
         message: "Transaction updated",
         variant: "success",
@@ -160,153 +153,127 @@ export default function TransactionsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 w-48 bg-gray-200 rounded" />
-            <div className="h-64 bg-gray-200 rounded" />
-          </div>
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-48 bg-gray-200 rounded" />
+          <div className="h-64 bg-gray-200 rounded" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/projects/${projectId}`}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Transactions
-                </h1>
-                {project && (
-                  <p className="text-sm text-gray-500">
-                    {project.name} - {project.businessName}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {transactions.length > 0 && (
-                <Link href={`/projects/${projectId}/export`}>
-                  <Button variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </Link>
-              )}
-              <Link href={`/projects/${projectId}/coa`}>
-                <Button>
-                  Chart of Accounts
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
+            3
           </div>
+          <h1 className="text-2xl font-bold text-gray-900">Extract Transactions</h1>
         </div>
+        <p className="text-gray-500 ml-11">
+          Extract transactions from uploaded documents using AI
+        </p>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Extraction Controls */}
+      {/* Extraction Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-indigo-600" />
+            Transaction Extraction
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {documentsCount === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No documents to extract from
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Upload and classify bank statements, receipts, or invoices first.
+              </p>
+              <Link href={`/projects/${projectId}/upload`}>
+                <Button className="mt-4">Upload Documents</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <ExtractionProgress
+                isExtracting={isExtracting}
+                documentsTotal={documentsCount}
+                documentsProcessed={extractionResult?.documentsProcessed || 0}
+                transactionsFound={extractionResult?.totalTransactions || transactions.length}
+                errors={extractionResult?.errors || []}
+              />
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleExtract}
+                  disabled={isExtracting}
+                  isLoading={isExtracting}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {transactions.length > 0 ? "Re-extract Transactions" : "Extract Transactions"}
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500 text-center">
+                This will use AI to extract transactions from {documentsCount} document
+                {documentsCount !== 1 ? "s" : ""} (bank statements, receipts, invoices).
+                {transactions.length > 0 && " Existing transactions will be replaced."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Transactions Table */}
+      {transactions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-indigo-600" />
-              Transaction Extraction
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-indigo-600" />
+                Extracted Transactions
+              </span>
+              <span className="text-sm font-normal text-gray-500">
+                {transactions.filter((t) => t.isReviewed).length} of{" "}
+                {transactions.length} reviewed
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {documentsCount === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No documents to extract from
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Upload and classify bank statements, receipts, or invoices first.
-                </p>
-                <Link href={`/projects/${projectId}/upload`}>
-                  <Button className="mt-4">Upload Documents</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <ExtractionProgress
-                  isExtracting={isExtracting}
-                  documentsTotal={documentsCount}
-                  documentsProcessed={extractionResult?.documentsProcessed || 0}
-                  transactionsFound={extractionResult?.totalTransactions || transactions.length}
-                  errors={extractionResult?.errors || []}
-                />
-
-                <div className="flex justify-center">
-                  <Button
-                    onClick={handleExtract}
-                    disabled={isExtracting}
-                    isLoading={isExtracting}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {transactions.length > 0 ? "Re-extract Transactions" : "Extract Transactions"}
-                  </Button>
-                </div>
-
-                <p className="text-xs text-gray-500 text-center">
-                  This will use AI to extract transactions from {documentsCount} document
-                  {documentsCount !== 1 ? "s" : ""} (bank statements, receipts, invoices).
-                  {transactions.length > 0 && " Existing transactions will be replaced."}
-                </p>
-              </div>
-            )}
+            <TransactionTable
+              transactions={transactions}
+              accounts={accounts}
+              onUpdateTransaction={handleUpdateTransaction}
+              onMarkReviewed={handleMarkReviewed}
+            />
           </CardContent>
         </Card>
+      )}
 
-        {/* Transactions Table */}
-        {transactions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-indigo-600" />
-                  Extracted Transactions
-                </span>
-                <span className="text-sm font-normal text-gray-500">
-                  {transactions.filter((t) => t.isReviewed).length} of{" "}
-                  {transactions.length} reviewed
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TransactionTable
-                transactions={transactions}
-                accounts={accounts}
-                onUpdateTransaction={handleUpdateTransaction}
-                onMarkReviewed={handleMarkReviewed}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Help section */}
-        <div className="bg-blue-50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900">How it works</h3>
-          <ul className="mt-2 text-sm text-blue-700 space-y-1">
-            <li>1. Click "Extract Transactions" to analyze your documents with AI</li>
-            <li>2. Review extracted transactions and verify account mappings</li>
-            <li>3. Click on an account to change the mapping if needed</li>
-            <li>4. Export transactions along with your Chart of Accounts</li>
-          </ul>
-        </div>
+      {/* Help section */}
+      <div className="bg-blue-50 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-blue-900">How it works</h3>
+        <ul className="mt-2 text-sm text-blue-700 space-y-1">
+          <li>1. Click &quot;Extract Transactions&quot; to analyze your documents with AI</li>
+          <li>2. Review extracted transactions and verify account mappings</li>
+          <li>3. Click on an account to change the mapping if needed</li>
+          <li>4. Export transactions in the next step</li>
+        </ul>
       </div>
+
+      {/* Workflow Navigation */}
+      <WorkflowNav
+        projectId={projectId}
+        currentStep="transactions"
+        nextDisabled={transactions.length === 0}
+        nextDisabledReason={transactions.length === 0 ? "Extract transactions first" : undefined}
+      />
     </div>
   );
 }

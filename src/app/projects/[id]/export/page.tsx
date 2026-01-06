@@ -4,30 +4,19 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Download,
   FileSpreadsheet,
-  Plus,
-  CheckCircle,
   AlertCircle,
   FileText,
   DollarSign,
-  Package,
+  Calendar,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExportOptions } from "@/components/export";
+import { WorkflowNav } from "@/components/workflow";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-
-interface CoAData {
-  id: string;
-  industry: string;
-  accounts: any[];
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface ProjectData {
   id: string;
@@ -38,8 +27,11 @@ interface ProjectData {
 interface Transaction {
   id: string;
   date: string;
+  description: string;
   amount: number;
   type: string;
+  suggestedAccountNumber?: string;
+  suggestedAccountName?: string;
 }
 
 export default function ExportPage() {
@@ -50,24 +42,20 @@ export default function ExportPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [project, setProject] = useState<ProjectData | null>(null);
-  const [coa, setCoa] = useState<CoAData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Bundle export options
-  const [includeCoA, setIncludeCoA] = useState(true);
+  // Export options
   const [includeTransactions, setIncludeTransactions] = useState(true);
   const [includeSummary, setIncludeSummary] = useState(true);
-  const [selectedFormat, setSelectedFormat] = useState<"qbo" | "qbd" | "xero">("qbo");
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load project, CoA, and transactions in parallel
-        const [projectRes, coaRes, transRes] = await Promise.all([
+        // Load project and transactions in parallel
+        const [projectRes, transRes] = await Promise.all([
           fetch(`/api/projects/${projectId}`),
-          fetch(`/api/coa/${projectId}`),
           fetch(`/api/extract-transactions?projectId=${projectId}`),
         ]);
 
@@ -77,15 +65,6 @@ export default function ExportPage() {
 
         const projectData = await projectRes.json();
         setProject(projectData);
-
-        if (coaRes.ok) {
-          const coaData = await coaRes.json();
-          setCoa(coaData);
-        } else if (coaRes.status === 404) {
-          setError("no-coa");
-        } else {
-          throw new Error("Failed to load Chart of Accounts");
-        }
 
         // Load transactions
         if (transRes.ok) {
@@ -103,9 +82,9 @@ export default function ExportPage() {
     loadData();
   }, [projectId]);
 
-  // Handle bundle export
-  const handleBundleExport = async () => {
-    if (!includeCoA && !includeTransactions && !includeSummary) {
+  // Handle transaction export
+  const handleExport = async (format: "csv" | "xlsx") => {
+    if (!includeTransactions && !includeSummary) {
       addToast({
         title: "Nothing to Export",
         message: "Please select at least one item to export",
@@ -117,15 +96,14 @@ export default function ExportPage() {
     setIsExporting(true);
 
     try {
-      const response = await fetch("/api/export/bundle", {
+      const response = await fetch("/api/export/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          format: selectedFormat,
-          includeCoA,
-          includeTransactions: includeTransactions && transactions.length > 0,
-          includeSummary: includeSummary && transactions.length > 0,
+          format,
+          includeTransactions,
+          includeSummary,
         }),
       });
 
@@ -171,57 +149,10 @@ export default function ExportPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
-
-  if (error === "no-coa") {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link
-                href={`/projects/${projectId}`}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Export Chart of Accounts
-                </h1>
-                {project && (
-                  <p className="text-sm text-gray-500">{project.name}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900">
-                  No Chart of Accounts Found
-                </h3>
-                <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
-                  You need to generate a Chart of Accounts before you can export
-                  it. Go to the Chart of Accounts page to create one.
-                </p>
-                <div className="mt-6">
-                  <Button onClick={() => router.push(`/projects/${projectId}/coa`)}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Generate Chart of Accounts
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-48 bg-gray-200 rounded" />
+          <div className="h-64 bg-gray-200 rounded" />
         </div>
       </div>
     );
@@ -229,7 +160,7 @@ export default function ExportPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="space-y-6">
         <Card>
           <CardContent className="py-8">
             <div className="text-center">
@@ -248,7 +179,6 @@ export default function ExportPage() {
     );
   }
 
-  const accountCount = coa?.accounts?.length || 0;
   const transactionCount = transactions.length;
   const totalDebits = transactions
     .filter((t) => t.type === "debit")
@@ -257,118 +187,147 @@ export default function ExportPage() {
     .filter((t) => t.type === "credit")
     .reduce((sum, t) => sum + t.amount, 0);
 
+  // Get date range
+  const dates = transactions.map((t) => new Date(t.date).getTime());
+  const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : null;
+  const maxDate = dates.length > 0 ? new Date(Math.max(...dates)) : null;
+  const dateRange = minDate && maxDate
+    ? `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`
+    : "No transactions";
+
+  // Get unique accounts
+  const uniqueAccounts = new Set(
+    transactions
+      .filter((t) => t.suggestedAccountName)
+      .map((t) => t.suggestedAccountName)
+  ).size;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/projects/${projectId}`}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Export Data
-              </h1>
-              {project && (
-                <p className="text-sm text-gray-500">{project.name}</p>
-              )}
-            </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
+            4
           </div>
+          <h1 className="text-2xl font-bold text-gray-900">Export Transactions</h1>
         </div>
+        <p className="text-gray-500 ml-11">
+          Export extracted transaction data for your records
+        </p>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {/* CoA Summary */}
-          <Card>
-            <CardContent className="py-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                  <FileSpreadsheet className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Chart of Accounts
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    <span className="font-semibold text-gray-900">
-                      {accountCount} accounts
-                    </span>
-                    {coa?.industry && (
-                      <span className="ml-1 text-xs">
-                        ({coa.industry.replace("-", " ")})
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <Link href={`/projects/${projectId}/coa`}>
-                  <Button variant="outline" size="sm">
-                    Edit
+      {/* No Transactions Warning */}
+      {transactionCount === 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <AlertCircle className="h-10 w-10 text-amber-500" />
+              <div>
+                <h3 className="font-medium text-amber-900">
+                  No Transactions to Export
+                </h3>
+                <p className="text-sm text-amber-700 mt-1">
+                  You need to extract transactions before you can export them.
+                </p>
+                <Link href={`/projects/${projectId}/transactions`}>
+                  <Button size="sm" className="mt-3">
+                    Extract Transactions
                   </Button>
                 </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Transaction Summary */}
+      {transactionCount > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
+                  <FileText className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Transactions</p>
+                  <p className="text-xl font-semibold text-gray-900">
+                    {transactionCount}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Transaction Summary */}
           <Card>
-            <CardContent className="py-6">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-full",
-                  transactionCount > 0 ? "bg-indigo-100" : "bg-gray-100"
-                )}>
-                  <DollarSign className={cn(
-                    "h-6 w-6",
-                    transactionCount > 0 ? "text-indigo-600" : "text-gray-400"
-                  )} />
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                  <DollarSign className="h-5 w-5 text-green-600" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Transactions
-                  </h3>
-                  {transactionCount > 0 ? (
-                    <p className="text-sm text-gray-500">
-                      <span className="font-semibold text-gray-900">
-                        {transactionCount} transactions
-                      </span>
-                      <span className="ml-2 text-xs">
-                        ({totalCredits.toLocaleString("en-US", { style: "currency", currency: "USD" })} in / {totalDebits.toLocaleString("en-US", { style: "currency", currency: "USD" })} out)
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No transactions extracted yet
-                    </p>
-                  )}
+                <div>
+                  <p className="text-sm text-gray-500">Credits (In)</p>
+                  <p className="text-xl font-semibold text-green-600">
+                    {totalCredits.toLocaleString("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    })}
+                  </p>
                 </div>
-                <Link href={`/projects/${projectId}/transactions`}>
-                  <Button variant="outline" size="sm">
-                    {transactionCount > 0 ? "View" : "Extract"}
-                  </Button>
-                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                  <DollarSign className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Debits (Out)</p>
+                  <p className="text-xl font-semibold text-red-600">
+                    {totalDebits.toLocaleString("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Date Range</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {dateRange}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
+      )}
 
-        {/* Bundle Export */}
-        <Card className="mb-8">
+      {/* Export Options */}
+      {transactionCount > 0 && (
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-indigo-600" />
-              Bundle Export
+              <Download className="h-5 w-5 text-indigo-600" />
+              Export Options
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-500 mb-4">
-              Select what to include in your export and choose a format:
+              Select what to include in your export:
             </p>
 
             {/* Export Options Checkboxes */}
@@ -377,143 +336,87 @@ export default function ExportPage() {
                 <div
                   className={cn(
                     "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                    includeCoA
+                    includeTransactions
                       ? "bg-indigo-600 border-indigo-600"
                       : "border-gray-300"
                   )}
-                  onClick={() => setIncludeCoA(!includeCoA)}
+                  onClick={() => setIncludeTransactions(!includeTransactions)}
                 >
-                  {includeCoA && <Check className="h-3 w-3 text-white" />}
+                  {includeTransactions && <Check className="h-3 w-3 text-white" />}
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium text-gray-900">
-                    Chart of Accounts
-                  </span>
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({accountCount} accounts)
-                  </span>
-                </div>
-              </label>
-
-              <label className={cn(
-                "flex items-center gap-3",
-                transactionCount > 0 ? "cursor-pointer" : "opacity-50 cursor-not-allowed"
-              )}>
-                <div
-                  className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                    includeTransactions && transactionCount > 0
-                      ? "bg-indigo-600 border-indigo-600"
-                      : "border-gray-300"
-                  )}
-                  onClick={() => transactionCount > 0 && setIncludeTransactions(!includeTransactions)}
-                >
-                  {includeTransactions && transactionCount > 0 && (
-                    <Check className="h-3 w-3 text-white" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    Transactions
+                    Transaction Details
                   </span>
                   <span className="text-xs text-gray-500 ml-2">
                     ({transactionCount} transactions)
                   </span>
+                  <p className="text-xs text-gray-500">
+                    Date, description, amount, type, suggested account
+                  </p>
                 </div>
               </label>
 
-              <label className={cn(
-                "flex items-center gap-3",
-                transactionCount > 0 ? "cursor-pointer" : "opacity-50 cursor-not-allowed"
-              )}>
+              <label className="flex items-center gap-3 cursor-pointer">
                 <div
                   className={cn(
                     "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                    includeSummary && transactionCount > 0
+                    includeSummary
                       ? "bg-indigo-600 border-indigo-600"
                       : "border-gray-300"
                   )}
-                  onClick={() => transactionCount > 0 && setIncludeSummary(!includeSummary)}
+                  onClick={() => setIncludeSummary(!includeSummary)}
                 >
-                  {includeSummary && transactionCount > 0 && (
-                    <Check className="h-3 w-3 text-white" />
-                  )}
+                  {includeSummary && <Check className="h-3 w-3 text-white" />}
                 </div>
                 <div className="flex-1">
                   <span className="text-sm font-medium text-gray-900">
                     Account Summary
                   </span>
                   <span className="text-xs text-gray-500 ml-2">
-                    (totals by account)
+                    ({uniqueAccounts} accounts)
                   </span>
+                  <p className="text-xs text-gray-500">
+                    Totals by account for easy review
+                  </p>
                 </div>
               </label>
             </div>
 
-            {/* Format Selection */}
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-700 mb-2">Export Format:</p>
-              <div className="flex gap-2">
-                {(["qbo", "qbd", "xero"] as const).map((format) => (
-                  <button
-                    key={format}
-                    onClick={() => setSelectedFormat(format)}
-                    className={cn(
-                      "px-4 py-2 text-sm rounded-lg border transition-colors",
-                      selectedFormat === format
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-gray-700 border-gray-300 hover:border-indigo-300"
-                    )}
-                  >
-                    {format === "qbo" && "QuickBooks Online"}
-                    {format === "qbd" && "QuickBooks Desktop"}
-                    {format === "xero" && "Xero"}
-                  </button>
-                ))}
-              </div>
+            {/* Export Buttons */}
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => handleExport("csv")}
+                disabled={isExporting || (!includeTransactions && !includeSummary)}
+                isLoading={isExporting}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Download as CSV
+              </Button>
             </div>
 
-            {/* Export Button */}
-            <Button
-              onClick={handleBundleExport}
-              disabled={isExporting || (!includeCoA && !includeTransactions && !includeSummary)}
-              isLoading={isExporting}
-              className="w-full"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {isExporting ? "Exporting..." : "Download Bundle"}
-            </Button>
+            <p className="text-xs text-gray-500 mt-4">
+              CSV files can be imported into Excel, Google Sheets, or your accounting software.
+            </p>
           </CardContent>
         </Card>
+      )}
 
-        {/* Individual Export Options */}
-        <div className="mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Individual Exports
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Or download just the Chart of Accounts in your preferred format:
-          </p>
-          <ExportOptions projectId={projectId} />
-        </div>
-
-        {/* Bottom Actions */}
-        <div className="border-t border-gray-200 pt-8 mt-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <Link
-              href="/dashboard"
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <ArrowLeft className="inline h-4 w-4 mr-1" />
-              Back to Dashboard
-            </Link>
-            <Button onClick={() => router.push("/projects/new")}>
-              <Plus className="h-4 w-4 mr-2" />
-              Start New Project
-            </Button>
-          </div>
-        </div>
+      {/* Help Info */}
+      <div className="bg-blue-50 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-blue-900">About this export</h3>
+        <ul className="mt-2 text-sm text-blue-700 space-y-1">
+          <li>Export raw transaction data for your bookkeeper&apos;s records</li>
+          <li>Use the account summary for quick review of totals by category</li>
+          <li>The final Chart of Accounts and Report are generated in the next step</li>
+        </ul>
       </div>
+
+      {/* Workflow Navigation */}
+      <WorkflowNav
+        projectId={projectId}
+        currentStep="export"
+      />
     </div>
   );
 }

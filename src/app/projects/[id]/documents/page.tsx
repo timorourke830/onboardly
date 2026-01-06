@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Loader2, Sparkles, FileText } from "lucide-react";
+import { Loader2, Sparkles, FileText, FileSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClassificationReview } from "@/components/documents";
+import { WorkflowNav } from "@/components/workflow";
 import { useToast } from "@/components/ui/toast";
 import type { DocumentCategory } from "@/types/document";
 
@@ -142,44 +143,31 @@ export default function ProjectDocumentsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <Link
-            href={`/projects/${projectId}`}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Review Documents
-            </h1>
-            <p className="text-sm text-gray-500">
-              {project?.name} - {project?.businessName}
-            </p>
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
+              2
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Review Documents</h1>
           </div>
+          <p className="text-gray-500 ml-11">
+            Review and verify AI document classifications
+          </p>
         </div>
 
-        <div className="flex gap-3">
-          {unclassifiedCount > 0 && (
-            <Button
-              onClick={handleClassifyAll}
-              isLoading={isClassifying}
-              variant="outline"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Classify {unclassifiedCount} Document
-              {unclassifiedCount !== 1 && "s"}
-            </Button>
-          )}
-          <Link href={`/projects/${projectId}/coa`}>
-            <Button disabled={documents.length === 0}>
-              Continue to Chart of Accounts
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
+        {unclassifiedCount > 0 && (
+          <Button
+            onClick={handleClassifyAll}
+            isLoading={isClassifying}
+            variant="outline"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Classify {unclassifiedCount} Document
+            {unclassifiedCount !== 1 && "s"}
+          </Button>
+        )}
       </div>
 
       {/* Classification Status */}
@@ -229,6 +217,26 @@ export default function ProjectDocumentsPage() {
           onSave={handleSaveChanges}
         />
       )}
+
+      {/* Help Info */}
+      {documents.length > 0 && (
+        <div className="bg-blue-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-900">Tips for review</h3>
+          <ul className="mt-2 text-sm text-blue-700 space-y-1">
+            <li>Click on a document category to change it if the AI classification is incorrect</li>
+            <li>Documents with lower confidence scores may need more attention</li>
+            <li>Once reviewed, documents will be marked as verified</li>
+          </ul>
+        </div>
+      )}
+
+      {/* Workflow Navigation */}
+      <WorkflowNav
+        projectId={projectId}
+        currentStep="review"
+        nextDisabled={documents.length === 0}
+        nextDisabledReason={documents.length === 0 ? "Upload documents first" : undefined}
+      />
     </div>
   );
 }

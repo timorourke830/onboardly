@@ -2,17 +2,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight, Upload, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dropzone, FileList, type UploadFile } from "@/components/upload";
+import { WorkflowNav } from "@/components/workflow";
 import { useToast } from "@/components/ui/toast";
 
 interface Project {
   id: string;
   name: string;
   businessName: string;
+  _count?: {
+    documents: number;
+  };
 }
 
 export default function ProjectUploadPage() {
@@ -183,10 +186,12 @@ export default function ProjectUploadPage() {
   const uploadingCount = files.filter((f) => f.status === "uploading").length;
   const successCount = files.filter((f) => f.status === "success").length;
   const allUploaded = files.length > 0 && pendingCount === 0 && uploadingCount === 0;
+  const existingDocCount = project?._count?.documents || 0;
+  const hasDocuments = existingDocCount > 0 || successCount > 0;
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="space-y-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 w-48 bg-gray-200 rounded" />
           <div className="h-64 bg-gray-200 rounded" />
@@ -196,25 +201,46 @@ export default function ProjectUploadPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href={`/projects/${projectId}`}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
+            1
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Upload Documents</h1>
-          <p className="text-sm text-gray-500">
-            {project?.name} - {project?.businessName}
-          </p>
         </div>
+        <p className="text-gray-500 ml-11">
+          Upload your client&apos;s financial documents for classification
+        </p>
       </div>
 
+      {/* Existing Documents Notice */}
+      {existingDocCount > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  {existingDocCount} document{existingDocCount !== 1 ? "s" : ""} already uploaded
+                </p>
+                <p className="text-xs text-blue-700">
+                  Upload more documents below or continue to the next step
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Upload Files</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Upload className="h-5 w-5 text-indigo-600" />
+            Upload Files
+          </CardTitle>
           <CardDescription>
             Drag and drop files or click to browse. Supported formats: PDF, JPG,
             PNG, XLSX, CSV
@@ -259,15 +285,24 @@ export default function ProjectUploadPage() {
         </CardContent>
       </Card>
 
+      {/* Help Info */}
       <div className="bg-blue-50 rounded-lg p-4">
         <h3 className="text-sm font-medium text-blue-900">What happens next?</h3>
         <ul className="mt-2 text-sm text-blue-700 space-y-1">
           <li>1. Upload your client&apos;s documents</li>
           <li>2. Our AI will classify each document automatically</li>
           <li>3. Review and adjust classifications if needed</li>
-          <li>4. Generate a Chart of Accounts based on the documents</li>
+          <li>4. Extract transactions and generate reports</li>
         </ul>
       </div>
+
+      {/* Workflow Navigation */}
+      <WorkflowNav
+        projectId={projectId}
+        currentStep="upload"
+        nextDisabled={!hasDocuments}
+        nextDisabledReason={!hasDocuments ? "Upload at least one document first" : undefined}
+      />
     </div>
   );
 }
