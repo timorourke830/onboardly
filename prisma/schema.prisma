@@ -22,31 +22,33 @@ model Project {
   businessName String
   businessType String?
   industry     String     @default("general")
-  status       String     @default("uploading") // uploading, classifying, reviewing, complete
+  status       String     @default("uploading") // uploading, classifying, reviewing, extracting, complete
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents    Document[]
+  transactions Transaction[]
   coa          ChartOfAccounts?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
 
 model Document {
-  id          String   @id @default(cuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  fileName    String
-  fileUrl     String
-  fileType    String
-  fileSize    Int
-  category    String   @default("other") // bank_statement, receipt, invoice, tax_document, payroll, contract, other
-  subcategory String?
-  confidence  Float    @default(0)
-  year        Int?
-  isReviewed  Boolean  @default(false)
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int
+  category     String        @default("other") // bank_statement, receipt, invoice, tax_document, payroll, contract, other
+  subcategory  String?
+  confidence   Float         @default(0)
+  year         Int?
+  isReviewed   Boolean       @default(false)
+  metadata     Json?
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model ChartOfAccounts {
@@ -58,4 +60,28 @@ model ChartOfAccounts {
   suggestedAccounts Json?    // Array of AccountSuggestion objects
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model Transaction {
+  id                      String   @id @default(cuid())
+  projectId               String
+  project                 Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentId              String
+  document                Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  date                    DateTime
+  description             String
+  amount                  Float
+  type                    String   // "debit" or "credit"
+  vendor                  String?
+  suggestedAccountNumber  String?
+  suggestedAccountName    String?
+  confidence              Float    @default(0)
+  isReviewed              Boolean  @default(false)
+  reviewedAccountNumber   String?
+  reviewedAccountName     String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([documentId])
 }

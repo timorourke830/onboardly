@@ -1,4 +1,5 @@
 import { Account, AccountType, AccountDetailType } from "@/types/coa";
+import { Transaction } from "@/types/transaction";
 
 /**
  * Maps account detail types to QuickBooks Online account types
@@ -114,4 +115,46 @@ export function getQBOFilename(projectName: string): string {
   const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
   const date = new Date().toISOString().split("T")[0];
   return `${sanitizedName}_QBO_ChartOfAccounts_${date}.csv`;
+}
+
+/**
+ * Generates a QuickBooks Online compatible CSV file for transactions
+ * Format suitable for bank transaction import
+ */
+export function generateQBOTransactionsCSV(transactions: Transaction[]): string {
+  // QBO Bank Transaction Import format
+  const headers = ["Date", "Description", "Amount", "Account", "Payee/Vendor", "Type"];
+
+  const rows: string[][] = [];
+  rows.push(headers);
+
+  for (const transaction of transactions) {
+    // Use reviewed account if available, otherwise suggested
+    const accountNumber = transaction.reviewedAccountNumber || transaction.suggestedAccountNumber || "";
+    const accountName = transaction.reviewedAccountName || transaction.suggestedAccountName || "";
+    const account = accountName ? `${accountNumber} - ${accountName}` : accountNumber;
+
+    // For QBO, debits are negative, credits are positive
+    const amount = transaction.type === "debit" ? -transaction.amount : transaction.amount;
+
+    rows.push([
+      escapeCSV(transaction.date),
+      escapeCSV(transaction.description),
+      amount.toFixed(2),
+      escapeCSV(account),
+      escapeCSV(transaction.vendor || ""),
+      escapeCSV(transaction.type === "debit" ? "Expense" : "Deposit"),
+    ]);
+  }
+
+  return rows.map((row) => row.join(",")).join("\r\n");
+}
+
+/**
+ * Generate a filename for QBO transactions export
+ */
+export function getQBOTransactionsFilename(projectName: string): string {
+  const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
+  const date = new Date().toISOString().split("T")[0];
+  return `${sanitizedName}_QBO_Transactions_${date}.csv`;
 }

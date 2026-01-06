@@ -1,4 +1,5 @@
 import { Account, AccountType, AccountDetailType } from "@/types/coa";
+import { Transaction } from "@/types/transaction";
 
 /**
  * QuickBooks Desktop IIF Account Type Codes
@@ -140,4 +141,71 @@ export function getQBDFilename(projectName: string): string {
   const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
   const date = new Date().toISOString().split("T")[0];
   return `${sanitizedName}_QBD_ChartOfAccounts_${date}.iif`;
+}
+
+/**
+ * Generates a QuickBooks Desktop compatible IIF file for General Journal transactions
+ *
+ * IIF Format for transactions (TRNS/SPL):
+ * !TRNS - Header row for transaction lines
+ * !SPL - Header row for split lines
+ * !ENDTRNS - End of transaction marker
+ */
+export function generateQBDTransactionsIIF(transactions: Transaction[]): string {
+  const lines: string[] = [];
+
+  // IIF header rows for general journal entries
+  lines.push("!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO");
+  lines.push("!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO");
+  lines.push("!ENDTRNS");
+
+  // Group transactions by date for journal entries
+  for (const transaction of transactions) {
+    // Use reviewed account if available, otherwise suggested
+    const accountName = transaction.reviewedAccountName || transaction.suggestedAccountName || "Uncategorized";
+
+    // Format date as MM/DD/YYYY for QBD
+    const dateParts = transaction.date.split("-");
+    const qbdDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+
+    // For debits, amount is positive (expense/asset increase)
+    // For credits, amount is negative (income/liability increase)
+    const amount = transaction.type === "debit" ? transaction.amount : -transaction.amount;
+
+    // Transaction line (TRNS)
+    lines.push([
+      "TRNS",
+      "GENERAL JOURNAL",
+      qbdDate,
+      escapeIIF(accountName),
+      escapeIIF(transaction.vendor || ""),
+      amount.toFixed(2),
+      escapeIIF(transaction.description),
+    ].join("\t"));
+
+    // Split line (SPL) - the offsetting entry (typically goes to a suspense or clearing account)
+    // In a real scenario, you'd want to properly balance the journal entries
+    lines.push([
+      "SPL",
+      "GENERAL JOURNAL",
+      qbdDate,
+      "Opening Balance Equity", // Default offset account
+      "",
+      (-amount).toFixed(2),
+      escapeIIF(transaction.description),
+    ].join("\t"));
+
+    lines.push("ENDTRNS");
+  }
+
+  return lines.join("\r\n");
+}
+
+/**
+ * Generate a filename for QBD transactions export
+ */
+export function getQBDTransactionsFilename(projectName: string): string {
+  const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
+  const date = new Date().toISOString().split("T")[0];
+  return `${sanitizedName}_QBD_Transactions_${date}.iif`;
 }

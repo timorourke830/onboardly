@@ -15,6 +15,7 @@ import {
   FileText,
   Building2,
   Check,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -422,6 +423,18 @@ export default function ProjectDetailPage() {
                   <FileCheck className="h-5 w-5 text-gray-400" />
                   <span className="text-sm font-medium text-gray-700">
                     Chart of Accounts
+                  </span>
+                </div>
+                <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
+              </Link>
+              <Link
+                href={`/projects/${projectId}/transactions`}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <DollarSign className="h-5 w-5 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Transactions
                   </span>
                 </div>
                 <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />

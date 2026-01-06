@@ -1,4 +1,5 @@
 import { Account, AccountType, AccountDetailType } from "@/types/coa";
+import { Transaction } from "@/types/transaction";
 
 /**
  * Xero Account Type Codes
@@ -165,4 +166,54 @@ export function getXeroFilename(projectName: string): string {
   const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
   const date = new Date().toISOString().split("T")[0];
   return `${sanitizedName}_Xero_ChartOfAccounts_${date}.csv`;
+}
+
+/**
+ * Generates a Xero compatible CSV file for bank transactions
+ *
+ * Xero Bank Statement CSV Format:
+ * *Date - Transaction date (required)
+ * *Amount - Transaction amount (required, negative for debits)
+ * Payee - Vendor/payee name
+ * Description - Transaction description
+ * Reference - Reference number
+ * Cheque Number - Check number if applicable
+ */
+export function generateXeroTransactionsCSV(transactions: Transaction[]): string {
+  const headers = ["*Date", "*Amount", "Payee", "Description", "Reference", "Account Code"];
+
+  const rows: string[][] = [];
+  rows.push(headers);
+
+  for (const transaction of transactions) {
+    // Use reviewed account if available, otherwise suggested
+    const accountCode = transaction.reviewedAccountNumber || transaction.suggestedAccountNumber || "";
+
+    // For Xero bank import, spending (debits) are negative, income (credits) are positive
+    const amount = transaction.type === "debit" ? -transaction.amount : transaction.amount;
+
+    // Format date as DD/MM/YYYY for Xero
+    const dateParts = transaction.date.split("-");
+    const xeroDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+    rows.push([
+      xeroDate,
+      amount.toFixed(2),
+      escapeCSV(transaction.vendor || ""),
+      escapeCSV(transaction.description),
+      escapeCSV(transaction.id.slice(-8)), // Use last 8 chars of ID as reference
+      escapeCSV(accountCode),
+    ]);
+  }
+
+  return rows.map((row) => row.join(",")).join("\r\n");
+}
+
+/**
+ * Generate a filename for Xero transactions export
+ */
+export function getXeroTransactionsFilename(projectName: string): string {
+  const sanitizedName = projectName.replace(/[^a-zA-Z0-9-_]/g, "_");
+  const date = new Date().toISOString().split("T")[0];
+  return `${sanitizedName}_Xero_Transactions_${date}.csv`;
 }
