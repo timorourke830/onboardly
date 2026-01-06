@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProjectCard, ProjectStatus, NewProjectModal } from "@/components/projects";
+import { ProjectCard, ProjectStatus, NewProjectModal, DeleteProjectModal } from "@/components/projects";
 
 interface Project {
   id: string;
@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -51,6 +52,21 @@ export default function DashboardPage() {
 
     fetchProjects();
   }, []);
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+
+    const response = await fetch(`/api/projects/${projectToDelete.id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      setProjects(projects.filter((p) => p.id !== projectToDelete.id));
+      setProjectToDelete(null);
+    } else {
+      console.error("Failed to delete project");
+    }
+  };
 
   // Calculate stats
   const totalProjects = projects.length;
@@ -236,6 +252,7 @@ export default function DashboardPage() {
                 status={project.status as ProjectStatus}
                 documentCount={project._count?.documents || 0}
                 createdAt={project.createdAt}
+                onDelete={() => setProjectToDelete(project)}
               />
             ))}
           </div>
@@ -266,6 +283,14 @@ export default function DashboardPage() {
       <NewProjectModal
         isOpen={showNewProjectModal}
         onClose={() => setShowNewProjectModal(false)}
+      />
+
+      {/* Delete Project Modal */}
+      <DeleteProjectModal
+        isOpen={!!projectToDelete}
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleDeleteProject}
+        projectName={projectToDelete?.name || ""}
       />
     </div>
   );

@@ -9,6 +9,7 @@ import {
   FileText,
   ChevronRight,
   Filter,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { StatusBadge, ProjectStatus, NewProjectModal } from "@/components/projects";
+import { StatusBadge, ProjectStatus, NewProjectModal, DeleteProjectModal } from "@/components/projects";
 
 interface Project {
   id: string;
@@ -51,6 +52,7 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -69,6 +71,21 @@ export default function ProjectsPage() {
 
     fetchProjects();
   }, []);
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+
+    const response = await fetch(`/api/projects/${projectToDelete.id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      setProjects(projects.filter((p) => p.id !== projectToDelete.id));
+      setProjectToDelete(null);
+    } else {
+      console.error("Failed to delete project");
+    }
+  };
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -163,7 +180,7 @@ export default function ProjectsPage() {
             {filteredProjects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:border-indigo-200 hover:shadow-sm transition-all"
+                className="cursor-pointer hover:border-indigo-200 hover:shadow-sm transition-all group"
                 onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <CardContent className="p-4">
@@ -181,7 +198,19 @@ export default function ProjectsPage() {
                         </p>
                       </div>
                     </div>
-                    <StatusBadge status={project.status} />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectToDelete(project);
+                        }}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                        title="Delete project"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <StatusBadge status={project.status} />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center gap-1.5">
@@ -206,7 +235,7 @@ export default function ProjectsPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Documents</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-20">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,7 +271,19 @@ export default function ProjectsPage() {
                         {formatDate(project.createdAt)}
                       </TableCell>
                       <TableCell>
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProjectToDelete(project);
+                            }}
+                            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                            title="Delete project"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -303,6 +344,14 @@ export default function ProjectsPage() {
       <NewProjectModal
         isOpen={showNewProjectModal}
         onClose={() => setShowNewProjectModal(false)}
+      />
+
+      {/* Delete Project Modal */}
+      <DeleteProjectModal
+        isOpen={!!projectToDelete}
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleDeleteProject}
+        projectName={projectToDelete?.name || ""}
       />
     </div>
   );

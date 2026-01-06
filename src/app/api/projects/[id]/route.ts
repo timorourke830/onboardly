@@ -160,12 +160,18 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    console.log(`[DELETE /api/projects/${id}] Starting delete...`);
 
-    // Verify project belongs to user
+    // Verify project belongs to user and get documents for file cleanup
     const existingProject = await prisma.project.findFirst({
       where: {
         id,
         userId: session.user.id,
+      },
+      include: {
+        documents: {
+          select: { fileUrl: true },
+        },
       },
     });
 
@@ -176,11 +182,59 @@ export async function DELETE(
       );
     }
 
+    // Delete files from Supabase Storage
+    // Files are stored at URLs like: https://xxx.supabase.co/storage/v1/object/public/documents/userId/fileName
+    const fileUrls = existingProject.documents.map((d: { fileUrl: string }) => d.fileUrl);
+    console.log(`[DELETE /api/projects/${id}] Found ${fileUrls.length} files to delete from storage`);
+
+    if (fileUrls.length > 0 && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      try {
+        // Import Supabase client dynamically
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_KEY
+        );
+
+        // Extract file paths from URLs and delete them
+        const filePaths = fileUrls
+          .map((url: string) => {
+            // URL format: .../storage/v1/object/public/documents/path/to/file
+            const match = url.match(/\/storage\/v1\/object\/public\/documents\/(.+)$/);
+            return match ? match[1] : null;
+          })
+          .filter((path: string | null): path is string => path !== null);
+
+        if (filePaths.length > 0) {
+          const { error: storageError } = await supabase.storage
+            .from("documents")
+            .remove(filePaths);
+
+          if (storageError) {
+            console.error(`[DELETE /api/projects/${id}] Storage cleanup error:`, storageError);
+            // Continue with project deletion even if storage cleanup fails
+          } else {
+            console.log(`[DELETE /api/projects/${id}] Successfully deleted ${filePaths.length} files from storage`);
+          }
+        }
+      } catch (storageError) {
+        console.error(`[DELETE /api/projects/${id}] Storage cleanup failed:`, storageError);
+        // Continue with project deletion even if storage cleanup fails
+      }
+    }
+
+    // Delete the project (cascade will handle related records)
+    // Prisma schema has onDelete: Cascade for documents, transactions, and CoA
     await prisma.project.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: "Project deleted" });
+    console.log(`[DELETE /api/projects/${id}] Project deleted successfully`);
+
+    return NextResponse.json({
+      message: "Project deleted",
+      deletedFiles: fileUrls.length,
+    });
   } catch (error) {
     console.error("Error deleting project:", error);
     return NextResponse.json(

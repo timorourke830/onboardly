@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Folder, FileText, Calendar, ChevronRight } from "lucide-react";
+import { Folder, FileText, Calendar, ChevronRight, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge, ProjectStatus } from "./status-badge";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface ProjectCardProps {
   documentCount: number;
   createdAt: string | Date;
   className?: string;
+  onDelete?: () => void;
 }
 
 export function ProjectCard({
@@ -24,6 +25,7 @@ export function ProjectCard({
   documentCount,
   createdAt,
   className,
+  onDelete,
 }: ProjectCardProps) {
   const router = useRouter();
 
@@ -33,10 +35,15 @@ export function ProjectCard({
     year: "numeric",
   });
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.();
+  };
+
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md hover:border-indigo-200",
+        "cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group",
         className
       )}
       onClick={() => router.push(`/projects/${id}`)}
@@ -52,7 +59,18 @@ export function ProjectCard({
               <p className="text-sm text-gray-500 truncate">{businessName}</p>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded-md text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all"
+                title="Delete project"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+          </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between">

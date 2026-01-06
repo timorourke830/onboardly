@@ -6,6 +6,8 @@ const anthropic = new Anthropic({
 });
 
 const MODEL = "claude-sonnet-4-20250514";
+const MAX_RETRIES = 2;
+const MAX_TOKENS = 8192; // Increased for larger documents
 
 const TRANSACTION_EXTRACTION_PROMPT = `You are an expert financial document analyzer. Extract all individual transactions from this document.
 
@@ -128,7 +130,7 @@ function isImage(fileType: string): boolean {
 }
 
 /**
- * Extract transactions from a PDF document
+ * Extract transactions from a PDF document with retry logic
  */
 async function extractFromPDF(
   documentId: string,
@@ -145,31 +147,67 @@ async function extractFromPDF(
   const arrayBuffer = await response.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString("base64");
 
-  const message = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: [
+  // Check file size - if too large, warn about potential issues
+  const fileSizeKB = arrayBuffer.byteLength / 1024;
+  console.log(`[Transaction Extractor] PDF size: ${fileSizeKB.toFixed(1)} KB`);
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[Transaction Extractor] Retry attempt ${attempt} for ${documentName}`);
+      }
+
+      const message = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        messages: [
           {
-            type: "document",
-            source: {
-              type: "base64",
-              media_type: "application/pdf",
-              data: base64,
-            },
-          },
-          {
-            type: "text",
-            text: TRANSACTION_EXTRACTION_PROMPT,
+            role: "user",
+            content: [
+              {
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: "application/pdf",
+                  data: base64,
+                },
+              },
+              {
+                type: "text",
+                text: attempt === 0
+                  ? TRANSACTION_EXTRACTION_PROMPT
+                  : TRANSACTION_EXTRACTION_PROMPT + "\n\nIMPORTANT: Keep your response concise. If there are many transactions, summarize similar ones. Ensure your JSON is complete and valid.",
+              },
+            ],
           },
         ],
-      },
-    ],
-  });
+      });
 
-  return parseExtractionResponse(message, documentId, documentName, "pdf", category);
+      const result = parseExtractionResponse(message, documentId, documentName, "pdf", category);
+
+      // If we got transactions or no parse errors, return
+      if (result.transactions.length > 0 || !result.errors.some(e => e.includes("Failed to parse"))) {
+        return result;
+      }
+
+      // If we had a parse error, save it and retry
+      lastError = new Error(result.errors.join("; "));
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`[Transaction Extractor] Attempt ${attempt + 1} failed:`, lastError.message);
+    }
+  }
+
+  // All retries exhausted
+  return {
+    transactions: [],
+    documentId,
+    documentName,
+    extractionMethod: "pdf",
+    errors: [lastError?.message || "Failed after all retries"],
+  };
 }
 
 /**
@@ -195,7 +233,7 @@ async function extractFromImage(
 
   const message = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: MAX_TOKENS,
     messages: [
       {
         role: "user",
@@ -250,12 +288,11 @@ async function extractFromSpreadsheet(
   }
 
   // Take headers and sample data for Claude to analyze
-  const headers = lines[0];
   const sampleData = lines.slice(0, Math.min(100, lines.length)).join("\n");
 
   const message = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: MAX_TOKENS,
     messages: [
       {
         role: "user",
@@ -265,6 +302,85 @@ async function extractFromSpreadsheet(
   });
 
   return parseExtractionResponse(message, documentId, documentName, "spreadsheet", category);
+}
+
+/**
+ * Attempt to repair truncated or malformed JSON
+ */
+function tryRepairJSON(jsonStr: string): string | null {
+  // Try to find the transactions array and extract valid entries
+  const transactionsMatch = jsonStr.match(/"transactions"\s*:\s*\[/);
+  if (!transactionsMatch) {
+    return null;
+  }
+
+  const startIndex = transactionsMatch.index! + transactionsMatch[0].length;
+
+  // Find all complete transaction objects
+  const validTransactions: string[] = [];
+  let depth = 0;
+  let currentObj = "";
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = startIndex; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+
+    if (escapeNext) {
+      currentObj += char;
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      currentObj += char;
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+    }
+
+    if (!inString) {
+      if (char === "{") {
+        depth++;
+      } else if (char === "}") {
+        depth--;
+        if (depth === 0) {
+          currentObj += char;
+          // Validate this transaction object
+          try {
+            const parsed = JSON.parse(currentObj);
+            if (parsed.date && parsed.description && typeof parsed.amount !== "undefined") {
+              validTransactions.push(currentObj);
+            }
+          } catch {
+            // Skip invalid object
+          }
+          currentObj = "";
+          continue;
+        }
+      } else if (char === "]" && depth === 0) {
+        // End of transactions array
+        break;
+      }
+    }
+
+    if (depth > 0) {
+      currentObj += char;
+    }
+  }
+
+  if (validTransactions.length > 0) {
+    return JSON.stringify({
+      transactions: validTransactions.map(t => JSON.parse(t)),
+      totalTransactions: validTransactions.length,
+      errors: ["Response was truncated - partial extraction performed"],
+    });
+  }
+
+  return null;
 }
 
 /**
@@ -289,9 +405,17 @@ function parseExtractionResponse(
     };
   }
 
+  // Log stop reason for debugging
+  if (message.stop_reason !== "end_turn") {
+    console.warn(`[Transaction Extractor] Response stop reason: ${message.stop_reason}`);
+  }
+
   try {
     // Extract JSON from response
     let jsonStr = content.text.trim();
+
+    // Log response length for debugging
+    console.log(`[Transaction Extractor] Response length: ${jsonStr.length} chars`);
 
     // Remove markdown code blocks if present
     if (jsonStr.startsWith("```json")) {
@@ -304,43 +428,94 @@ function parseExtractionResponse(
     }
 
     jsonStr = jsonStr.trim();
-    const parsed = JSON.parse(jsonStr);
+
+    let parsed: { transactions?: unknown[]; errors?: string[] };
+
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseError) {
+      // Try to repair truncated JSON
+      console.warn(`[Transaction Extractor] Initial parse failed, attempting repair...`);
+      console.warn(`[Transaction Extractor] Parse error: ${parseError instanceof Error ? parseError.message : parseError}`);
+
+      // Log a sample of the problematic area
+      if (parseError instanceof SyntaxError) {
+        const match = parseError.message.match(/position (\d+)/);
+        if (match) {
+          const pos = parseInt(match[1]);
+          console.warn(`[Transaction Extractor] Context around error position ${pos}:`);
+          console.warn(jsonStr.slice(Math.max(0, pos - 100), pos + 100));
+        }
+      }
+
+      const repaired = tryRepairJSON(jsonStr);
+      if (repaired) {
+        parsed = JSON.parse(repaired);
+        console.log(`[Transaction Extractor] Successfully repaired JSON, extracted ${(parsed.transactions || []).length} transactions`);
+      } else {
+        // Last resort: try to find any valid JSON object
+        const jsonMatch = jsonStr.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch {
+            throw parseError; // Re-throw original error
+          }
+        } else {
+          throw parseError;
+        }
+      }
+    }
 
     // Transform to our Transaction type
     const transactions: Transaction[] = (parsed.transactions || []).map(
-      (t: {
-        date: string;
-        description: string;
-        amount: number;
-        type: string;
-        vendor: string | null;
-      }, index: number) => ({
-        id: `${documentId}-${index}`,
-        date: t.date,
-        description: t.description,
-        amount: Math.abs(t.amount), // Ensure positive
-        type: t.type === "credit" ? "credit" : "debit",
-        vendor: t.vendor || null,
-        documentId,
-        documentName,
-        suggestedAccountNumber: null,
-        suggestedAccountName: null,
-        confidence: 0,
-        isReviewed: false,
-        category,
-      })
+      (t: unknown, index: number) => {
+        const tx = t as {
+          date?: string;
+          description?: string;
+          amount?: number;
+          type?: string;
+          vendor?: string | null;
+        };
+        return {
+          id: `${documentId}-${index}`,
+          date: tx.date || new Date().toISOString().split("T")[0],
+          description: tx.description || "Unknown transaction",
+          amount: Math.abs(tx.amount || 0), // Ensure positive
+          type: tx.type === "credit" ? "credit" as const : "debit" as const,
+          vendor: tx.vendor || null,
+          documentId,
+          documentName,
+          suggestedAccountNumber: null,
+          suggestedAccountName: null,
+          confidence: 0,
+          isReviewed: false,
+          category,
+        };
+      }
     );
+
+    console.log(`[Transaction Extractor] Successfully parsed ${transactions.length} transactions from ${documentName}`);
 
     return {
       transactions,
       documentId,
       documentName,
       extractionMethod,
-      errors: parsed.errors || [],
+      errors: (parsed.errors as string[]) || [],
     };
   } catch (error) {
     console.error("[Transaction Extractor] Failed to parse response:", error);
-    console.error("[Transaction Extractor] Raw response:", content.text);
+    // Log truncated raw response for debugging (first and last 500 chars)
+    const rawText = content.text;
+    if (rawText.length > 1000) {
+      console.error("[Transaction Extractor] Raw response (truncated):");
+      console.error("START:", rawText.slice(0, 500));
+      console.error("...");
+      console.error("END:", rawText.slice(-500));
+    } else {
+      console.error("[Transaction Extractor] Raw response:", rawText);
+    }
 
     return {
       transactions: [],
