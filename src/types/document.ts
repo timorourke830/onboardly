@@ -1,5 +1,6 @@
 export const DOCUMENT_CATEGORIES = [
   "bank_statement",
+  "credit_card",
   "receipt",
   "invoice",
   "tax_document",
@@ -51,6 +52,7 @@ export interface DocumentWithClassification {
 
 export const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   bank_statement: "Bank Statement",
+  credit_card: "Credit Card Statement",
   receipt: "Receipt",
   invoice: "Invoice",
   tax_document: "Tax Document",
@@ -61,6 +63,7 @@ export const CATEGORY_LABELS: Record<DocumentCategory, string> = {
 
 export const CATEGORY_COLORS: Record<DocumentCategory, { bg: string; text: string; border: string }> = {
   bank_statement: { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
+  credit_card: { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-200" },
   receipt: { bg: "bg-green-100", text: "text-green-800", border: "border-green-200" },
   invoice: { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200" },
   tax_document: { bg: "bg-red-100", text: "text-red-800", border: "border-red-200" },
