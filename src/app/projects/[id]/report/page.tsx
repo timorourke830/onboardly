@@ -219,7 +219,7 @@ export default function ReportPage() {
   const hasCoA = coa && coa.accounts?.length > 0;
 
   // Calculate completeness score
-  const completenessScore = report?.completenessScore || 0;
+  const completenessScore = report?.overallCompletenessScore || 0;
   const scoreColor = completenessScore >= 80 ? "text-green-600" : completenessScore >= 50 ? "text-amber-600" : "text-red-600";
 
   return (
