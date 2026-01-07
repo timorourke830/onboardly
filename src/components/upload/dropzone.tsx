@@ -42,16 +42,15 @@ export function getFileIcon(file: File) {
     return <Image className="h-8 w-8 text-blue-500" />;
   }
   if (type.includes("spreadsheet") || type.includes("excel") || type === "text/csv") {
-    return <FileSpreadsheet className="h-8 w-8 text-green-500" />;
+    return <FileSpreadsheet className="h-8 w-8 text-emerald-500" />;
   }
-  return <FileText className="h-8 w-8 text-gray-500" />;
+  return <FileText className="h-8 w-8 text-slate-500" />;
 }
 
 export function Dropzone({ onFilesAdded, disabled = false, maxSize = MAX_FILE_SIZE }: DropzoneProps) {
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       if (rejectedFiles.length > 0) {
-        // Handle rejected files - could show toast notification
         console.warn("Rejected files:", rejectedFiles);
       }
       if (acceptedFiles.length > 0) {
@@ -73,10 +72,10 @@ export function Dropzone({ onFilesAdded, disabled = false, maxSize = MAX_FILE_SI
     <div
       {...getRootProps()}
       className={cn(
-        "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors cursor-pointer",
-        isDragActive && !isDragReject && "border-blue-500 bg-blue-50",
-        isDragReject && "border-red-500 bg-red-50",
-        !isDragActive && !isDragReject && "border-gray-300 hover:border-gray-400 bg-gray-50",
+        "relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-all duration-200 cursor-pointer",
+        isDragActive && !isDragReject && "border-teal-500 bg-teal-50/50",
+        isDragReject && "border-red-500 bg-red-50/50",
+        !isDragActive && !isDragReject && "border-slate-200 hover:border-teal-400 hover:bg-slate-50 bg-white",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
@@ -84,38 +83,50 @@ export function Dropzone({ onFilesAdded, disabled = false, maxSize = MAX_FILE_SI
 
       {isDragReject ? (
         <>
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <p className="text-lg font-medium text-red-700">Invalid file type</p>
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-100 mb-4">
+            <AlertCircle className="h-7 w-7 text-red-600" />
+          </div>
+          <p className="text-base font-medium text-red-700">Invalid file type</p>
           <p className="mt-1 text-sm text-red-600">
             Only PDF, images (JPG, PNG), and spreadsheets (XLSX, CSV) are accepted
           </p>
         </>
       ) : isDragActive ? (
         <>
-          <Upload className="h-12 w-12 text-blue-500 mb-4 animate-bounce" />
-          <p className="text-lg font-medium text-blue-700">Drop files here</p>
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal-100 mb-4">
+            <Upload className="h-7 w-7 text-teal-600 animate-bounce" />
+          </div>
+          <p className="text-base font-medium text-teal-700">Drop files here</p>
         </>
       ) : (
         <>
-          <Upload className="h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-lg font-medium text-gray-700">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 mb-4 group-hover:bg-teal-100 transition-colors">
+            <Upload className="h-7 w-7 text-slate-500" />
+          </div>
+          <p className="text-base font-medium text-slate-700">
             Drag and drop files here
           </p>
-          <p className="mt-1 text-sm text-gray-500">
-            or click to browse
+          <p className="mt-1 text-sm text-slate-500">
+            or click to browse from your computer
           </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+
+          {/* File type badges */}
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <span className="inline-flex items-center rounded-lg bg-red-50 border border-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
               PDF
             </span>
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+            <span className="inline-flex items-center rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+              <Image className="h-3.5 w-3.5 mr-1.5" />
               JPG/PNG
             </span>
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+            <span className="inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
               XLSX/CSV
             </span>
           </div>
-          <p className="mt-3 text-xs text-gray-400">
+
+          <p className="mt-4 text-xs text-slate-400">
             Maximum file size: 50MB
           </p>
         </>

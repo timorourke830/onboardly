@@ -88,20 +88,20 @@ export default function DashboardPage() {
     {
       title: "Total Projects",
       value: totalProjects.toString(),
-      icon: <FolderOpen className="h-5 w-5 text-blue-600" />,
-      bgColor: "bg-blue-50",
+      icon: <FolderOpen className="h-5 w-5 text-teal-600" />,
+      bgColor: "bg-teal-50",
     },
     {
       title: "Documents Processed",
       value: totalDocuments.toString(),
-      icon: <FileText className="h-5 w-5 text-green-600" />,
-      bgColor: "bg-green-50",
+      icon: <FileText className="h-5 w-5 text-emerald-600" />,
+      bgColor: "bg-emerald-50",
     },
     {
       title: "Hours Saved",
       value: hoursEstimate.toString(),
-      icon: <Clock className="h-5 w-5 text-purple-600" />,
-      bgColor: "bg-purple-50",
+      icon: <Clock className="h-5 w-5 text-blue-600" />,
+      bgColor: "bg-blue-50",
       suffix: "hrs",
     },
   ];
@@ -124,10 +124,10 @@ export default function DashboardPage() {
       {/* Welcome section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-slate-900">
             Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}!
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-slate-500">
             Here&apos;s an overview of your client onboarding projects.
           </p>
         </div>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-slate-500">
                 {stat.title}
               </CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -150,10 +150,10 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-slate-900">
                 {stat.value}
                 {stat.suffix && (
-                  <span className="text-lg font-normal text-gray-500 ml-1">
+                  <span className="text-lg font-normal text-slate-500 ml-1">
                     {stat.suffix}
                   </span>
                 )}
@@ -166,8 +166,8 @@ export default function DashboardPage() {
       {/* Quick Actions - Incomplete Projects */}
       {incompleteProjects.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-600" />
+          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-teal-600" />
             Continue Where You Left Off
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -176,16 +176,16 @@ export default function DashboardPage() {
               return (
                 <Card
                   key={project.id}
-                  className="cursor-pointer hover:border-indigo-200 transition-colors"
+                  className="cursor-pointer hover:border-teal-200 transition-colors"
                   onClick={() => router.push(action.href)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
+                        <p className="font-medium text-slate-900 truncate">
                           {project.name}
                         </p>
-                        <p className="text-sm text-gray-500 truncate">
+                        <p className="text-sm text-slate-500 truncate">
                           {project.businessName}
                         </p>
                       </div>
@@ -205,13 +205,13 @@ export default function DashboardPage() {
       {/* Recent projects */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-slate-900">
             Recent Projects
           </h2>
           {projects.length > 5 && (
             <Link
               href="/projects"
-              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              className="text-sm text-teal-600 hover:text-teal-700 font-medium"
             >
               View all projects
               <ArrowRight className="inline ml-1 h-4 w-4" />
@@ -260,11 +260,11 @@ export default function DashboardPage() {
           <Card>
             <CardContent className="py-12">
               <div className="text-center">
-                <FolderOpen className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-sm font-medium text-gray-900">
+                <FolderOpen className="mx-auto h-12 w-12 text-slate-300" />
+                <h3 className="mt-4 text-sm font-medium text-slate-900">
                   No projects yet
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-slate-500">
                   Get started by creating a new client onboarding project.
                 </p>
                 <div className="mt-6">

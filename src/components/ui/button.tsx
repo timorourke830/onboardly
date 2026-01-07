@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost" | "destructive";
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive";
   size?: "sm" | "default" | "lg";
   isLoading?: boolean;
 }
@@ -22,20 +22,25 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 rounded-lg";
 
     const variants = {
-      default: "bg-blue-600 text-white hover:bg-blue-700",
+      default:
+        "bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 shadow-sm",
+      secondary:
+        "bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300",
       outline:
-        "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-      ghost: "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
-      destructive: "bg-red-600 text-white hover:bg-red-700",
+        "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100",
+      ghost:
+        "text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200",
+      destructive:
+        "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm",
     };
 
     const sizes = {
-      sm: "h-8 px-3 text-sm",
-      default: "h-10 px-4 text-sm",
-      lg: "h-12 px-6 text-base",
+      sm: "h-8 px-3 text-xs gap-1.5",
+      default: "h-10 px-4 text-sm gap-2",
+      lg: "h-12 px-6 text-base gap-2",
     };
 
     return (
@@ -49,7 +54,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {isLoading ? (
           <>
             <svg
-              className="mr-2 h-4 w-4 animate-spin"
+              className="h-4 w-4 animate-spin"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -69,7 +74,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            Loading...
+            <span>Loading...</span>
           </>
         ) : (
           children

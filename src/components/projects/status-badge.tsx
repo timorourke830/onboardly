@@ -11,31 +11,35 @@ interface StatusBadgeProps {
 
 const STATUS_CONFIG: Record<
   ProjectStatus,
-  { label: string; bgColor: string; textColor: string; dotColor: string }
+  { label: string; bgColor: string; textColor: string; borderColor: string; dotColor: string }
 > = {
   uploading: {
     label: "Uploading",
     bgColor: "bg-blue-50",
     textColor: "text-blue-700",
+    borderColor: "border-blue-200",
     dotColor: "bg-blue-500",
   },
   classifying: {
     label: "Classifying",
-    bgColor: "bg-yellow-50",
-    textColor: "text-yellow-700",
-    dotColor: "bg-yellow-500",
+    bgColor: "bg-amber-50",
+    textColor: "text-amber-700",
+    borderColor: "border-amber-200",
+    dotColor: "bg-amber-500",
   },
   reviewing: {
     label: "Reviewing",
-    bgColor: "bg-orange-50",
-    textColor: "text-orange-700",
-    dotColor: "bg-orange-500",
+    bgColor: "bg-purple-50",
+    textColor: "text-purple-700",
+    borderColor: "border-purple-200",
+    dotColor: "bg-purple-500",
   },
   complete: {
     label: "Complete",
-    bgColor: "bg-green-50",
-    textColor: "text-green-700",
-    dotColor: "bg-green-500",
+    bgColor: "bg-emerald-50",
+    textColor: "text-emerald-700",
+    borderColor: "border-emerald-200",
+    dotColor: "bg-emerald-500",
   },
 };
 
@@ -45,9 +49,10 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border",
         config.bgColor,
         config.textColor,
+        config.borderColor,
         className
       )}
     >

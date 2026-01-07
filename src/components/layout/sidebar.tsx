@@ -10,6 +10,10 @@ import {
   Download,
   FolderOpen,
   X,
+  ChevronLeft,
+  Zap,
+  ClipboardList,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +36,7 @@ export function Sidebar({ isOpen, onClose, projectName }: SidebarProps) {
 
   const dashboardNavItems: NavItem[] = [
     {
-      label: "Overview",
+      label: "Dashboard",
       href: "/dashboard",
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
@@ -51,24 +55,29 @@ export function Sidebar({ isOpen, onClose, projectName }: SidebarProps) {
           icon: <LayoutDashboard className="h-5 w-5" />,
         },
         {
-          label: "Upload Documents",
+          label: "Upload",
           href: `/projects/${projectId}/upload`,
           icon: <Upload className="h-5 w-5" />,
         },
         {
-          label: "Review Documents",
+          label: "Documents",
           href: `/projects/${projectId}/documents`,
           icon: <FileSearch className="h-5 w-5" />,
         },
         {
-          label: "Chart of Accounts",
-          href: `/projects/${projectId}/coa`,
-          icon: <FileSpreadsheet className="h-5 w-5" />,
+          label: "Transactions",
+          href: `/projects/${projectId}/transactions`,
+          icon: <DollarSign className="h-5 w-5" />,
         },
         {
           label: "Export",
           href: `/projects/${projectId}/export`,
           icon: <Download className="h-5 w-5" />,
+        },
+        {
+          label: "Report & CoA",
+          href: `/projects/${projectId}/report`,
+          icon: <ClipboardList className="h-5 w-5" />,
         },
       ]
     : [];
@@ -87,7 +96,7 @@ export function Sidebar({ isOpen, onClose, projectName }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -96,55 +105,87 @@ export function Sidebar({ isOpen, onClose, projectName }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white",
+          "fixed left-0 top-0 z-40 h-screen w-64 bg-slate-900",
           "transform transition-transform duration-200 ease-in-out",
           "lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex h-full flex-col">
-          {/* Mobile close button */}
-          <div className="flex items-center justify-between p-4 lg:hidden">
-            <span className="font-semibold text-gray-900">Menu</span>
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between px-4 border-b border-slate-800">
+            <Link href="/dashboard" className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600">
+                <Zap className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-semibold text-white">
+                OnboardLy
+              </span>
+            </Link>
             <button
               onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700"
+              className="lg:hidden p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               aria-label="Close menu"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Project name */}
+          {/* Project name badge */}
           {projectName && (
-            <div className="border-b border-gray-200 px-4 py-3">
-              <p className="text-xs font-medium uppercase text-gray-500">
+            <div className="mx-4 mt-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                 Current Project
               </p>
-              <p className="mt-1 font-semibold text-gray-900 truncate">
+              <p className="mt-1 text-sm font-medium text-white truncate">
                 {projectName}
               </p>
             </div>
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
+          <nav className="flex-1 overflow-y-auto px-3 py-4">
+            {/* Main section label */}
+            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {projectId ? "Workflow" : "Menu"}
+            </p>
+
             <ul className="space-y-1">
-              {navItems.map((item) => (
+              {navItems.map((item, index) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                       isActive(item.href)
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
                     )}
                     aria-current={isActive(item.href) ? "page" : undefined}
                   >
-                    {item.icon}
-                    {item.label}
+                    <span
+                      className={cn(
+                        "flex-shrink-0",
+                        isActive(item.href) ? "text-white" : "text-slate-500"
+                      )}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                    {/* Step indicator for project workflow */}
+                    {projectId && (
+                      <span
+                        className={cn(
+                          "ml-auto flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold",
+                          isActive(item.href)
+                            ? "bg-white/20 text-white"
+                            : "bg-slate-800 text-slate-500"
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
@@ -152,18 +193,26 @@ export function Sidebar({ isOpen, onClose, projectName }: SidebarProps) {
 
             {/* Back to dashboard link when in project */}
             {projectId && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="mt-6 pt-4 border-t border-slate-800">
                 <Link
                   href="/dashboard"
                   onClick={onClose}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
                 >
-                  <LayoutDashboard className="h-5 w-5" />
-                  Back to Dashboard
+                  <ChevronLeft className="h-5 w-5 text-slate-500" />
+                  <span>All Projects</span>
                 </Link>
               </div>
             )}
           </nav>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-slate-800">
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+              <span className="text-xs text-slate-500">AI Ready</span>
+            </div>
+          </div>
         </div>
       </aside>
     </>

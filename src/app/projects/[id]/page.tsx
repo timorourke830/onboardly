@@ -254,10 +254,10 @@ export default function ProjectDetailPage() {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3" />
-          <div className="h-4 bg-gray-200 rounded w-1/4" />
-          <div className="h-32 bg-gray-200 rounded" />
-          <div className="h-48 bg-gray-200 rounded" />
+          <div className="h-8 bg-slate-200 rounded w-1/3" />
+          <div className="h-4 bg-slate-200 rounded w-1/4" />
+          <div className="h-32 bg-slate-200 rounded" />
+          <div className="h-48 bg-slate-200 rounded" />
         </div>
       </div>
     );
@@ -266,7 +266,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Project not found</p>
+        <p className="text-slate-500">Project not found</p>
         <Button className="mt-4" onClick={() => router.push("/projects")}>
           Back to Projects
         </Button>
@@ -282,10 +282,10 @@ export default function ProjectDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
             <StatusBadge status={project.status} />
           </div>
-          <div className="flex items-center gap-2 mt-1 text-gray-500">
+          <div className="flex items-center gap-2 mt-1 text-slate-500">
             <Building2 className="h-4 w-4" />
             <span>{project.businessName}</span>
           </div>
@@ -313,18 +313,18 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Continue Where You Left Off */}
-      <Card className="border-indigo-200 bg-indigo-50/50">
+      <Card className="border-teal-200 bg-teal-50/50">
         <CardContent className="py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
-                <currentStep.icon className="h-6 w-6 text-indigo-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-100">
+                <currentStep.icon className="h-6 w-6 text-teal-600" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">
+                <h3 className="font-medium text-slate-900">
                   Step {currentStep.number}: {currentStep.label}
                 </h3>
-                <p className="text-sm text-gray-600 mt-0.5">
+                <p className="text-sm text-slate-600 mt-0.5">
                   {currentStep.description}
                 </p>
               </div>
@@ -358,20 +358,20 @@ export default function ProjectDetailPage() {
                   onClick={(e) => isDisabled && e.preventDefault()}
                   className={cn(
                     "flex items-center gap-4 p-3 rounded-lg border transition-all",
-                    isComplete && "border-green-200 bg-green-50 hover:border-green-300",
-                    isCurrent && "border-indigo-200 bg-indigo-50 hover:border-indigo-300",
-                    !isComplete && !isCurrent && !isDisabled && "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
-                    isDisabled && "border-gray-100 bg-gray-50 cursor-not-allowed"
+                    isComplete && "border-emerald-200 bg-emerald-50 hover:border-emerald-300",
+                    isCurrent && "border-teal-200 bg-teal-50 hover:border-teal-300",
+                    !isComplete && !isCurrent && !isDisabled && "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
+                    isDisabled && "border-slate-100 bg-slate-50 cursor-not-allowed"
                   )}
                 >
                   {/* Step Number */}
                   <div
                     className={cn(
                       "flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium",
-                      isComplete && "bg-green-500 text-white",
-                      isCurrent && "bg-indigo-500 text-white",
-                      !isComplete && !isCurrent && !isDisabled && "bg-gray-200 text-gray-600",
-                      isDisabled && "bg-gray-100 text-gray-400"
+                      isComplete && "bg-emerald-500 text-white",
+                      isCurrent && "bg-teal-500 text-white",
+                      !isComplete && !isCurrent && !isDisabled && "bg-slate-200 text-slate-600",
+                      isDisabled && "bg-slate-100 text-slate-400"
                     )}
                   >
                     {isComplete ? (
@@ -385,19 +385,19 @@ export default function ProjectDetailPage() {
                   <div
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-lg",
-                      isComplete && "bg-green-100",
-                      isCurrent && "bg-indigo-100",
-                      !isComplete && !isCurrent && !isDisabled && "bg-gray-100",
-                      isDisabled && "bg-gray-50"
+                      isComplete && "bg-emerald-100",
+                      isCurrent && "bg-teal-100",
+                      !isComplete && !isCurrent && !isDisabled && "bg-slate-100",
+                      isDisabled && "bg-slate-50"
                     )}
                   >
                     <Icon
                       className={cn(
                         "h-5 w-5",
-                        isComplete && "text-green-600",
-                        isCurrent && "text-indigo-600",
-                        !isComplete && !isCurrent && !isDisabled && "text-gray-500",
-                        isDisabled && "text-gray-300"
+                        isComplete && "text-emerald-600",
+                        isCurrent && "text-teal-600",
+                        !isComplete && !isCurrent && !isDisabled && "text-slate-500",
+                        isDisabled && "text-slate-300"
                       )}
                     />
                   </div>
@@ -407,10 +407,10 @@ export default function ProjectDetailPage() {
                     <p
                       className={cn(
                         "font-medium",
-                        isComplete && "text-green-900",
-                        isCurrent && "text-indigo-900",
-                        !isComplete && !isCurrent && !isDisabled && "text-gray-900",
-                        isDisabled && "text-gray-400"
+                        isComplete && "text-emerald-900",
+                        isCurrent && "text-teal-900",
+                        !isComplete && !isCurrent && !isDisabled && "text-slate-900",
+                        isDisabled && "text-slate-400"
                       )}
                     >
                       {step.label}
@@ -418,10 +418,10 @@ export default function ProjectDetailPage() {
                     <p
                       className={cn(
                         "text-sm truncate",
-                        isComplete && "text-green-700",
-                        isCurrent && "text-indigo-700",
-                        !isComplete && !isCurrent && !isDisabled && "text-gray-500",
-                        isDisabled && "text-gray-400"
+                        isComplete && "text-emerald-700",
+                        isCurrent && "text-teal-700",
+                        !isComplete && !isCurrent && !isDisabled && "text-slate-500",
+                        isDisabled && "text-slate-400"
                       )}
                     >
                       {step.description}
@@ -433,14 +433,14 @@ export default function ProjectDetailPage() {
                     <ChevronRight
                       className={cn(
                         "h-5 w-5",
-                        isComplete && "text-green-400",
-                        isCurrent && "text-indigo-400",
-                        !isComplete && !isCurrent && "text-gray-400"
+                        isComplete && "text-emerald-400",
+                        isCurrent && "text-teal-400",
+                        !isComplete && !isCurrent && "text-slate-400"
                       )}
                     />
                   )}
                   {isDisabled && (
-                    <AlertCircle className="h-5 w-5 text-gray-300" />
+                    <AlertCircle className="h-5 w-5 text-slate-300" />
                   )}
                 </Link>
               );
@@ -466,24 +466,24 @@ export default function ProjectDetailPage() {
                       key={category}
                       className="flex items-center justify-between"
                     >
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-slate-600">
                         {CATEGORY_LABELS[category as DocumentCategory] || category}
                       </span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-slate-900">
                         {count}
                       </span>
                     </div>
                   ))}
                 <div className="border-t pt-3 flex items-center justify-between font-medium">
-                  <span className="text-gray-900">Total Documents</span>
-                  <span className="text-gray-900">
+                  <span className="text-slate-900">Total Documents</span>
+                  <span className="text-slate-900">
                     {project._count?.documents || 0}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6 text-gray-500">
-                <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+              <div className="text-center py-6 text-slate-500">
+                <FileText className="mx-auto h-8 w-8 text-slate-300 mb-2" />
                 <p className="text-sm">No documents uploaded yet</p>
               </div>
             )}
@@ -498,28 +498,28 @@ export default function ProjectDetailPage() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Documents Uploaded</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-slate-600">Documents Uploaded</span>
+                <span className="text-sm font-medium text-slate-900">
                   {project._count?.documents || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Documents Reviewed</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-slate-600">Documents Reviewed</span>
+                <span className="text-sm font-medium text-slate-900">
                   {reviewedDocCount} / {project._count?.documents || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Transactions Extracted</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-slate-600">Transactions Extracted</span>
+                <span className="text-sm font-medium text-slate-900">
                   {transactionCount}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Chart of Accounts</span>
+                <span className="text-sm text-slate-600">Chart of Accounts</span>
                 <span className={cn(
                   "text-sm font-medium",
-                  project.coa ? "text-green-600" : "text-gray-400"
+                  project.coa ? "text-emerald-600" : "text-slate-400"
                 )}>
                   {project.coa ? `${project.coa.accounts?.length || 0} accounts` : "Not generated"}
                 </span>

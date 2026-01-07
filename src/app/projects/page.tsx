@@ -114,8 +114,8 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
+          <p className="mt-1 text-sm text-slate-500">
             Manage all your client onboarding projects
           </p>
         </div>
@@ -150,7 +150,7 @@ export default function ProjectsPage() {
 
       {/* Results count */}
       {!isLoading && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           Showing {filteredProjects.length} of {projects.length} projects
         </p>
       )}
@@ -180,20 +180,20 @@ export default function ProjectsPage() {
             {filteredProjects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:border-indigo-200 hover:shadow-sm transition-all group"
+                className="cursor-pointer hover:border-teal-200 hover:shadow-sm transition-all group"
                 onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 shrink-0">
-                        <FolderOpen className="h-5 w-5 text-indigo-600" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 shrink-0">
+                        <FolderOpen className="h-5 w-5 text-teal-600" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">
+                        <h3 className="font-medium text-slate-900 truncate">
                           {project.name}
                         </h3>
-                        <p className="text-sm text-gray-500 truncate">
+                        <p className="text-sm text-slate-500 truncate">
                           {project.businessName}
                         </p>
                       </div>
@@ -204,7 +204,7 @@ export default function ProjectsPage() {
                           e.stopPropagation();
                           setProjectToDelete(project);
                         }}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                        className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
                         title="Delete project"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -212,7 +212,7 @@ export default function ProjectsPage() {
                       <StatusBadge status={project.status} />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-gray-500">
+                  <div className="flex items-center justify-between text-sm text-slate-500">
                     <div className="flex items-center gap-1.5">
                       <FileText className="h-4 w-4" />
                       <span>{project._count?.documents || 0} docs</span>
@@ -242,32 +242,32 @@ export default function ProjectsPage() {
                   {filteredProjects.map((project) => (
                     <TableRow
                       key={project.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer"
                       onClick={() => router.push(`/projects/${project.id}`)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
-                            <FolderOpen className="h-4 w-4 text-indigo-600" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50">
+                            <FolderOpen className="h-4 w-4 text-teal-600" />
                           </div>
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-slate-900">
                             {project.name}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-600">
+                      <TableCell className="text-slate-600">
                         {project.businessName}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={project.status} />
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5 text-gray-600">
+                        <div className="flex items-center gap-1.5 text-slate-600">
                           <FileText className="h-4 w-4" />
                           {project._count?.documents || 0}
                         </div>
                       </TableCell>
-                      <TableCell className="text-gray-500">
+                      <TableCell className="text-slate-500">
                         {formatDate(project.createdAt)}
                       </TableCell>
                       <TableCell>
@@ -277,12 +277,12 @@ export default function ProjectsPage() {
                               e.stopPropagation();
                               setProjectToDelete(project);
                             }}
-                            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
                             title="Delete project"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -296,11 +296,11 @@ export default function ProjectsPage() {
         <Card>
           <CardContent className="py-16">
             <div className="text-center">
-              <FolderOpen className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">
+              <FolderOpen className="mx-auto h-12 w-12 text-slate-300" />
+              <h3 className="mt-4 text-lg font-medium text-slate-900">
                 No projects yet
               </h3>
-              <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
+              <p className="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
                 Create your first project to start organizing client documents
                 and generating a Chart of Accounts.
               </p>
@@ -317,11 +317,11 @@ export default function ProjectsPage() {
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <Search className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">
+              <Search className="mx-auto h-12 w-12 text-slate-300" />
+              <h3 className="mt-4 text-lg font-medium text-slate-900">
                 No matching projects
               </h3>
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-slate-500">
                 Try adjusting your search or filter criteria
               </p>
               <div className="mt-4">

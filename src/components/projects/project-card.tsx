@@ -43,7 +43,7 @@ export function ProjectCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group",
+        "cursor-pointer transition-all hover:shadow-md hover:border-teal-200 group",
         className
       )}
       onClick={() => router.push(`/projects/${id}`)}
@@ -51,31 +51,31 @@ export function ProjectCard({
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 min-w-0">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50">
-              <Folder className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-teal-50">
+              <Folder className="h-5 w-5 text-teal-600" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-medium text-gray-900 truncate">{name}</h3>
-              <p className="text-sm text-gray-500 truncate">{businessName}</p>
+              <h3 className="font-medium text-slate-900 truncate">{name}</h3>
+              <p className="text-sm text-slate-500 truncate">{businessName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {onDelete && (
               <button
                 onClick={handleDelete}
-                className="p-1.5 rounded-md text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all"
+                className="p-1.5 rounded-md text-slate-400 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all"
                 title="Delete project"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
-            <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+            <ChevronRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between">
           <StatusBadge status={status} />
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className="flex items-center gap-4 text-sm text-slate-500">
             <span className="flex items-center gap-1">
               <FileText className="h-4 w-4" />
               {documentCount}
