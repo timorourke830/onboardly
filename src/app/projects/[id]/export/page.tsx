@@ -2,18 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Download,
   FileSpreadsheet,
   AlertCircle,
   FileText,
-  DollarSign,
-  Calendar,
-  Check,
+  Package,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { WorkflowNav } from "@/components/workflow";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -24,14 +23,15 @@ interface ProjectData {
   businessName: string;
 }
 
-interface Transaction {
+interface ExportOption {
   id: string;
-  date: string;
+  title: string;
+  subtitle: string;
   description: string;
-  amount: number;
-  type: string;
-  suggestedAccountNumber?: string;
-  suggestedAccountName?: string;
+  format: string;
+  icon: React.ReactNode;
+  endpoint: string;
+  filename: string;
 }
 
 export default function ExportPage() {
@@ -42,22 +42,14 @@ export default function ExportPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [project, setProject] = useState<ProjectData | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  // Export options
-  const [includeTransactions, setIncludeTransactions] = useState(true);
-  const [includeSummary, setIncludeSummary] = useState(true);
-  const [isExporting, setIsExporting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load project and transactions in parallel
-        const [projectRes, transRes] = await Promise.all([
-          fetch(`/api/projects/${projectId}`),
-          fetch(`/api/extract-transactions?projectId=${projectId}`),
-        ]);
+        const projectRes = await fetch(`/api/projects/${projectId}`);
 
         if (!projectRes.ok) {
           throw new Error("Project not found");
@@ -65,12 +57,6 @@ export default function ExportPage() {
 
         const projectData = await projectRes.json();
         setProject(projectData);
-
-        // Load transactions
-        if (transRes.ok) {
-          const transData = await transRes.json();
-          setTransactions(transData.transactions || []);
-        }
       } catch (err) {
         console.error("Error loading data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -82,68 +68,141 @@ export default function ExportPage() {
     loadData();
   }, [projectId]);
 
-  // Handle transaction export
-  const handleExport = async (format: "csv" | "xlsx") => {
-    if (!includeTransactions && !includeSummary) {
-      addToast({
-        title: "Nothing to Export",
-        message: "Please select at least one item to export",
-        variant: "error",
-      });
-      return;
-    }
+  // Define export options
+  const exportOptions: ExportOption[] = [
+    {
+      id: "qbo",
+      title: "Chart of Accounts",
+      subtitle: "QuickBooks Online",
+      description: "Ready-to-import CSV file for QuickBooks Online",
+      format: ".csv",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+      endpoint: `/api/export/qbo/${projectId}`,
+      filename: `${project?.businessName || "CoA"}_QBO.csv`,
+    },
+    {
+      id: "qbd",
+      title: "Chart of Accounts",
+      subtitle: "QuickBooks Desktop",
+      description: "Ready-to-import IIF file for QuickBooks Desktop",
+      format: ".iif",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+      endpoint: `/api/export/qbd/${projectId}`,
+      filename: `${project?.businessName || "CoA"}_QBD.iif`,
+    },
+    {
+      id: "xero",
+      title: "Chart of Accounts",
+      subtitle: "Xero",
+      description: "Ready-to-import CSV file for Xero accounting",
+      format: ".csv",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+      endpoint: `/api/export/xero/${projectId}`,
+      filename: `${project?.businessName || "CoA"}_Xero.csv`,
+    },
+    {
+      id: "report",
+      title: "Onboarding Report",
+      subtitle: "PDF Document",
+      description: "Summary report with document inventory, transactions, gaps, and recommendations",
+      format: ".pdf",
+      icon: <FileText className="h-6 w-6" />,
+      endpoint: `/api/reports/onboarding?projectId=${projectId}&format=pdf`,
+      filename: `${project?.businessName || "Client"}_Onboarding_Report.pdf`,
+    },
+  ];
 
-    setIsExporting(true);
+  // Handle individual file download
+  const handleDownload = async (option: ExportOption) => {
+    setDownloadingId(option.id);
 
     try {
-      const response = await fetch("/api/export/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          format,
-          includeTransactions,
-          includeSummary,
-        }),
-      });
+      const response = await fetch(option.endpoint);
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Export failed");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to download ${option.title}`);
       }
 
-      const result = await response.json();
+      // Get the blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
 
-      // Download each file
-      for (const file of result.files) {
-        const blob = new Blob([file.content], { type: "text/plain" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+      // Create download link
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = option.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
-        // Small delay between downloads
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
+      // Mark as downloaded
+      setDownloadedIds((prev) => new Set([...prev, option.id]));
 
       addToast({
-        title: "Export Complete",
-        message: `Downloaded ${result.files.length} file(s)`,
+        title: "Download Complete",
+        message: `${option.title} (${option.subtitle}) downloaded successfully`,
         variant: "success",
       });
     } catch (err) {
-      console.error("Export error:", err);
+      console.error("Download error:", err);
       addToast({
-        title: "Export Failed",
-        message: err instanceof Error ? err.message : "Failed to export",
+        title: "Download Failed",
+        message: err instanceof Error ? err.message : "Failed to download file",
         variant: "error",
       });
     } finally {
-      setIsExporting(false);
+      setDownloadingId(null);
+    }
+  };
+
+  // Handle download all as ZIP
+  const handleDownloadAll = async () => {
+    setDownloadingId("all");
+
+    try {
+      const response = await fetch("/api/export/bundle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create bundle");
+      }
+
+      // Get the blob
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Create download link
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project?.businessName || "Client"}_Export_Bundle.zip`.replace(/[^a-zA-Z0-9._-]/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Mark all as downloaded
+      setDownloadedIds(new Set(exportOptions.map((o) => o.id)));
+
+      addToast({
+        title: "Bundle Downloaded",
+        message: "All files downloaded as ZIP archive",
+        variant: "success",
+      });
+    } catch (err) {
+      console.error("Bundle download error:", err);
+      addToast({
+        title: "Download Failed",
+        message: err instanceof Error ? err.message : "Failed to download bundle",
+        variant: "error",
+      });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -151,8 +210,12 @@ export default function ExportPage() {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 w-48 bg-gray-200 rounded" />
-          <div className="h-64 bg-gray-200 rounded" />
+          <div className="h-8 w-48 bg-slate-200 rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-40 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -165,8 +228,8 @@ export default function ExportPage() {
           <CardContent className="py-8">
             <div className="text-center">
               <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">Error</h3>
-              <p className="mt-2 text-sm text-gray-500">{error}</p>
+              <h3 className="mt-4 text-lg font-medium text-slate-900">Error</h3>
+              <p className="mt-2 text-sm text-slate-500">{error}</p>
               <div className="mt-6">
                 <Button onClick={() => router.push("/dashboard")}>
                   Back to Dashboard
@@ -179,236 +242,136 @@ export default function ExportPage() {
     );
   }
 
-  const transactionCount = transactions.length;
-  const totalDebits = transactions
-    .filter((t) => t.type === "debit")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalCredits = transactions
-    .filter((t) => t.type === "credit")
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // Get date range
-  const dates = transactions.map((t) => new Date(t.date).getTime());
-  const minDate = dates.length > 0 ? new Date(Math.min(...dates)) : null;
-  const maxDate = dates.length > 0 ? new Date(Math.max(...dates)) : null;
-  const dateRange = minDate && maxDate
-    ? `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`
-    : "No transactions";
-
-  // Get unique accounts
-  const uniqueAccounts = new Set(
-    transactions
-      .filter((t) => t.suggestedAccountName)
-      .map((t) => t.suggestedAccountName)
-  ).size;
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-teal-600 font-semibold text-sm">
             4
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Export Transactions</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Export Files</h1>
         </div>
-        <p className="text-gray-500 ml-11">
-          Export extracted transaction data for your records
+        <p className="text-slate-500 ml-11">
+          Download your Chart of Accounts and Onboarding Report
         </p>
       </div>
 
-      {/* No Transactions Warning */}
-      {transactionCount === 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="py-6">
-            <div className="flex items-center gap-4">
-              <AlertCircle className="h-10 w-10 text-amber-500" />
-              <div>
-                <h3 className="font-medium text-amber-900">
-                  No Transactions to Export
-                </h3>
-                <p className="text-sm text-amber-700 mt-1">
-                  You need to extract transactions before you can export them.
-                </p>
-                <Link href={`/projects/${projectId}/transactions`}>
-                  <Button size="sm" className="mt-3">
-                    Extract Transactions
+      {/* Export Options Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {exportOptions.map((option) => {
+          const isDownloading = downloadingId === option.id;
+          const isDownloaded = downloadedIds.has(option.id);
+
+          return (
+            <Card
+              key={option.id}
+              className={cn(
+                "relative overflow-hidden transition-all duration-200",
+                isDownloaded && "ring-2 ring-emerald-500 ring-offset-2"
+              )}
+            >
+              {isDownloaded && (
+                <div className="absolute top-3 right-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                </div>
+              )}
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={cn(
+                      "flex h-12 w-12 items-center justify-center rounded-lg",
+                      option.id === "report"
+                        ? "bg-amber-100 text-amber-600"
+                        : "bg-teal-100 text-teal-600"
+                    )}
+                  >
+                    {option.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      {option.title}
+                    </h3>
+                    <p className="text-sm font-medium text-slate-600">
+                      {option.subtitle}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {option.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                    {option.format}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => handleDownload(option)}
+                    disabled={downloadingId !== null}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </>
+                    )}
                   </Button>
-                </Link>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Download All Button */}
+      <Card className="bg-slate-50 border-slate-200">
+        <CardContent className="py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200 text-slate-600">
+                <Package className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Download All Files</h3>
+                <p className="text-sm text-slate-500">
+                  Get all 4 files in a single ZIP archive
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Transaction Summary */}
-      {transactionCount > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
-                  <FileText className="h-5 w-5 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Transactions</p>
-                  <p className="text-xl font-semibold text-gray-900">
-                    {transactionCount}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Credits (In)</p>
-                  <p className="text-xl font-semibold text-green-600">
-                    {totalCredits.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                  <DollarSign className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Debits (Out)</p>
-                  <p className="text-xl font-semibold text-red-600">
-                    {totalDebits.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Date Range</p>
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {dateRange}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Export Options */}
-      {transactionCount > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5 text-indigo-600" />
-              Export Options
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-500 mb-4">
-              Select what to include in your export:
-            </p>
-
-            {/* Export Options Checkboxes */}
-            <div className="space-y-3 mb-6">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                    includeTransactions
-                      ? "bg-indigo-600 border-indigo-600"
-                      : "border-gray-300"
-                  )}
-                  onClick={() => setIncludeTransactions(!includeTransactions)}
-                >
-                  {includeTransactions && <Check className="h-3 w-3 text-white" />}
-                </div>
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    Transaction Details
-                  </span>
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({transactionCount} transactions)
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    Date, description, amount, type, suggested account
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                    includeSummary
-                      ? "bg-indigo-600 border-indigo-600"
-                      : "border-gray-300"
-                  )}
-                  onClick={() => setIncludeSummary(!includeSummary)}
-                >
-                  {includeSummary && <Check className="h-3 w-3 text-white" />}
-                </div>
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    Account Summary
-                  </span>
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({uniqueAccounts} accounts)
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    Totals by account for easy review
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {/* Export Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => handleExport("csv")}
-                disabled={isExporting || (!includeTransactions && !includeSummary)}
-                isLoading={isExporting}
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Download as CSV
-              </Button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-4">
-              CSV files can be imported into Excel, Google Sheets, or your accounting software.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+            <Button
+              variant="outline"
+              onClick={handleDownloadAll}
+              disabled={downloadingId !== null}
+            >
+              {downloadingId === "all" ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating ZIP...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download ZIP
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Help Info */}
-      <div className="bg-blue-50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-blue-900">About this export</h3>
-        <ul className="mt-2 text-sm text-blue-700 space-y-1">
-          <li>Export raw transaction data for your bookkeeper&apos;s records</li>
-          <li>Use the account summary for quick review of totals by category</li>
-          <li>The final Chart of Accounts and Report are generated in the next step</li>
+      <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-teal-900">Import Instructions</h3>
+        <ul className="mt-2 text-sm text-teal-700 space-y-1">
+          <li><strong>QuickBooks Online:</strong> Go to Settings → Import Data → Chart of Accounts</li>
+          <li><strong>QuickBooks Desktop:</strong> Go to File → Utilities → Import → IIF Files</li>
+          <li><strong>Xero:</strong> Go to Accounting → Chart of Accounts → Import</li>
         </ul>
       </div>
 
