@@ -2,21 +2,17 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Upload,
   FileSearch,
   DollarSign,
   Download,
   ClipboardList,
-  Check,
   ArrowRight,
   Settings,
   Trash2,
   FileText,
   Building2,
-  AlertCircle,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -333,118 +329,6 @@ export default function ProjectDetailPage() {
               Continue
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Workflow Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Onboarding Workflow</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {workflowSteps.map((step, index) => {
-              const Icon = step.icon;
-              const status = getStepStatus(step);
-              const isComplete = status === "complete";
-              const isCurrent = status === "current";
-              const isDisabled = status === "disabled";
-
-              return (
-                <Link
-                  key={step.id}
-                  href={isDisabled ? "#" : step.href}
-                  onClick={(e) => isDisabled && e.preventDefault()}
-                  className={cn(
-                    "flex items-center gap-4 p-3 rounded-lg border transition-all",
-                    isComplete && "border-emerald-200 bg-emerald-50 hover:border-emerald-300",
-                    isCurrent && "border-teal-200 bg-teal-50 hover:border-teal-300",
-                    !isComplete && !isCurrent && !isDisabled && "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
-                    isDisabled && "border-slate-100 bg-slate-50 cursor-not-allowed"
-                  )}
-                >
-                  {/* Step Number */}
-                  <div
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium",
-                      isComplete && "bg-emerald-500 text-white",
-                      isCurrent && "bg-teal-500 text-white",
-                      !isComplete && !isCurrent && !isDisabled && "bg-slate-200 text-slate-600",
-                      isDisabled && "bg-slate-100 text-slate-400"
-                    )}
-                  >
-                    {isComplete ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      step.number
-                    )}
-                  </div>
-
-                  {/* Step Icon */}
-                  <div
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg",
-                      isComplete && "bg-emerald-100",
-                      isCurrent && "bg-teal-100",
-                      !isComplete && !isCurrent && !isDisabled && "bg-slate-100",
-                      isDisabled && "bg-slate-50"
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-5 w-5",
-                        isComplete && "text-emerald-600",
-                        isCurrent && "text-teal-600",
-                        !isComplete && !isCurrent && !isDisabled && "text-slate-500",
-                        isDisabled && "text-slate-300"
-                      )}
-                    />
-                  </div>
-
-                  {/* Step Info */}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={cn(
-                        "font-medium",
-                        isComplete && "text-emerald-900",
-                        isCurrent && "text-teal-900",
-                        !isComplete && !isCurrent && !isDisabled && "text-slate-900",
-                        isDisabled && "text-slate-400"
-                      )}
-                    >
-                      {step.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-sm truncate",
-                        isComplete && "text-emerald-700",
-                        isCurrent && "text-teal-700",
-                        !isComplete && !isCurrent && !isDisabled && "text-slate-500",
-                        isDisabled && "text-slate-400"
-                      )}
-                    >
-                      {step.description}
-                    </p>
-                  </div>
-
-                  {/* Arrow */}
-                  {!isDisabled && (
-                    <ChevronRight
-                      className={cn(
-                        "h-5 w-5",
-                        isComplete && "text-emerald-400",
-                        isCurrent && "text-teal-400",
-                        !isComplete && !isCurrent && "text-slate-400"
-                      )}
-                    />
-                  )}
-                  {isDisabled && (
-                    <AlertCircle className="h-5 w-5 text-slate-300" />
-                  )}
-                </Link>
-              );
-            })}
           </div>
         </CardContent>
       </Card>
