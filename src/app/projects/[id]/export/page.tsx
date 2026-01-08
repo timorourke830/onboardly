@@ -10,6 +10,7 @@ import {
   Package,
   CheckCircle2,
   Loader2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,6 +47,14 @@ export default function ExportPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
 
+  // Selection state for Download All
+  const [selectedFormats, setSelectedFormats] = useState({
+    qbo: true,
+    qbd: true,
+    xero: true,
+    transactions: true,
+  });
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -68,7 +77,7 @@ export default function ExportPage() {
     loadData();
   }, [projectId]);
 
-  // Define export options
+  // Define export options - 4 specific formats as requested
   const exportOptions: ExportOption[] = [
     {
       id: "qbo",
@@ -101,16 +110,24 @@ export default function ExportPage() {
       filename: `${project?.businessName || "CoA"}_Xero.csv`,
     },
     {
-      id: "report",
-      title: "Onboarding Report",
-      subtitle: "PDF Document",
-      description: "Summary report with document inventory, transactions, gaps, and recommendations",
-      format: ".pdf",
+      id: "transactions",
+      title: "Transactions",
+      subtitle: "Standard CSV",
+      description: "All extracted transactions with account mappings",
+      format: ".csv",
       icon: <FileText className="h-6 w-6" />,
-      endpoint: `/api/reports/onboarding?projectId=${projectId}&format=pdf`,
-      filename: `${project?.businessName || "Client"}_Onboarding_Report.pdf`,
+      endpoint: `/api/export/transactions/${projectId}`,
+      filename: `${project?.businessName || "Client"}_Transactions.csv`,
     },
   ];
+
+  // Toggle format selection
+  const toggleFormat = (formatId: string) => {
+    setSelectedFormats((prev) => ({
+      ...prev,
+      [formatId]: !prev[formatId as keyof typeof prev],
+    }));
+  };
 
   // Handle individual file download
   const handleDownload = async (option: ExportOption) => {
@@ -159,13 +176,30 @@ export default function ExportPage() {
 
   // Handle download all as ZIP
   const handleDownloadAll = async () => {
+    // Check if at least one format is selected
+    const hasSelection = Object.values(selectedFormats).some((v) => v);
+    if (!hasSelection) {
+      addToast({
+        title: "No Formats Selected",
+        message: "Please select at least one export format",
+        variant: "error",
+      });
+      return;
+    }
+
     setDownloadingId("all");
 
     try {
       const response = await fetch("/api/export/bundle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({
+          projectId,
+          includeQBO: selectedFormats.qbo,
+          includeQBD: selectedFormats.qbd,
+          includeXero: selectedFormats.xero,
+          includeTransactions: selectedFormats.transactions,
+        }),
       });
 
       if (!response.ok) {
@@ -186,12 +220,17 @@ export default function ExportPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      // Mark all as downloaded
-      setDownloadedIds(new Set(exportOptions.map((o) => o.id)));
+      // Mark selected items as downloaded
+      const newDownloaded = new Set(downloadedIds);
+      if (selectedFormats.qbo) newDownloaded.add("qbo");
+      if (selectedFormats.qbd) newDownloaded.add("qbd");
+      if (selectedFormats.xero) newDownloaded.add("xero");
+      if (selectedFormats.transactions) newDownloaded.add("transactions");
+      setDownloadedIds(newDownloaded);
 
       addToast({
         title: "Bundle Downloaded",
-        message: "All files downloaded as ZIP archive",
+        message: "Selected files downloaded as ZIP archive",
         variant: "success",
       });
     } catch (err) {
@@ -242,6 +281,8 @@ export default function ExportPage() {
     );
   }
 
+  const selectedCount = Object.values(selectedFormats).filter(Boolean).length;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -253,7 +294,7 @@ export default function ExportPage() {
           <h1 className="text-2xl font-bold text-slate-900">Export Files</h1>
         </div>
         <p className="text-slate-500 ml-11">
-          Download your Chart of Accounts and Onboarding Report
+          Download your Chart of Accounts and Transactions in multiple formats
         </p>
       </div>
 
@@ -262,26 +303,42 @@ export default function ExportPage() {
         {exportOptions.map((option) => {
           const isDownloading = downloadingId === option.id;
           const isDownloaded = downloadedIds.has(option.id);
+          const isSelected = selectedFormats[option.id as keyof typeof selectedFormats];
 
           return (
             <Card
               key={option.id}
               className={cn(
                 "relative overflow-hidden transition-all duration-200",
-                isDownloaded && "ring-2 ring-emerald-500 ring-offset-2"
+                isDownloaded && "ring-2 ring-emerald-500 ring-offset-2",
+                isSelected && !isDownloaded && "ring-2 ring-teal-500 ring-offset-2"
               )}
             >
+              {/* Selection checkbox for Download All */}
+              <button
+                onClick={() => toggleFormat(option.id)}
+                className={cn(
+                  "absolute top-3 left-3 flex h-5 w-5 items-center justify-center rounded border transition-colors",
+                  isSelected
+                    ? "bg-teal-600 border-teal-600"
+                    : "border-slate-300 bg-white hover:border-teal-500"
+                )}
+              >
+                {isSelected && <Check className="h-3 w-3 text-white" />}
+              </button>
+
               {isDownloaded && (
                 <div className="absolute top-3 right-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                 </div>
               )}
-              <CardContent className="p-6">
+
+              <CardContent className="p-6 pl-12">
                 <div className="flex items-start gap-4">
                   <div
                     className={cn(
                       "flex h-12 w-12 items-center justify-center rounded-lg",
-                      option.id === "report"
+                      option.id === "transactions"
                         ? "bg-amber-100 text-amber-600"
                         : "bg-teal-100 text-teal-600"
                     )}
@@ -338,16 +395,18 @@ export default function ExportPage() {
                 <Package className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">Download All Files</h3>
+                <h3 className="font-semibold text-slate-900">Download All Selected</h3>
                 <p className="text-sm text-slate-500">
-                  Get all 4 files in a single ZIP archive
+                  {selectedCount === 0
+                    ? "Select formats above to include in ZIP"
+                    : `${selectedCount} format${selectedCount !== 1 ? "s" : ""} selected`}
                 </p>
               </div>
             </div>
             <Button
               variant="outline"
               onClick={handleDownloadAll}
-              disabled={downloadingId !== null}
+              disabled={downloadingId !== null || selectedCount === 0}
             >
               {downloadingId === "all" ? (
                 <>
@@ -365,13 +424,14 @@ export default function ExportPage() {
         </CardContent>
       </Card>
 
-      {/* Help Info */}
+      {/* Format Info */}
       <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-teal-900">Import Instructions</h3>
+        <h3 className="text-sm font-medium text-teal-900">File Format Guide</h3>
         <ul className="mt-2 text-sm text-teal-700 space-y-1">
-          <li><strong>QuickBooks Online:</strong> Go to Settings → Import Data → Chart of Accounts</li>
-          <li><strong>QuickBooks Desktop:</strong> Go to File → Utilities → Import → IIF Files</li>
-          <li><strong>Xero:</strong> Go to Accounting → Chart of Accounts → Import</li>
+          <li><strong>QBO (.csv):</strong> QuickBooks Online - Settings → Import Data → Chart of Accounts</li>
+          <li><strong>QBD (.iif):</strong> QuickBooks Desktop - File → Utilities → Import → IIF Files</li>
+          <li><strong>Xero (.csv):</strong> Xero - Accounting → Chart of Accounts → Import</li>
+          <li><strong>Transactions (.csv):</strong> Standard CSV format for all extracted transactions</li>
         </ul>
       </div>
 

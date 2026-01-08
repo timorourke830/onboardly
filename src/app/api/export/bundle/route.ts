@@ -4,31 +4,74 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   generateQBOCSV,
-  generateQBOTransactionsCSV,
   getQBOFilename,
-  getQBOTransactionsFilename,
   generateQBDIIF,
-  generateQBDTransactionsIIF,
   getQBDFilename,
-  getQBDTransactionsFilename,
   generateXeroCSV,
-  generateXeroTransactionsCSV,
   getXeroFilename,
-  getXeroTransactionsFilename,
-  generateSummaryCSV,
-  getSummaryFilename,
 } from "@/lib/export";
 import { Account } from "@/types/coa";
 import { Transaction } from "@/types/transaction";
 import { z } from "zod";
+import JSZip from "jszip";
 
 const exportSchema = z.object({
   projectId: z.string().min(1),
-  format: z.enum(["qbo", "qbd", "xero"]),
-  includeCoA: z.boolean().default(true),
+  includeQBO: z.boolean().default(true),
+  includeQBD: z.boolean().default(true),
+  includeXero: z.boolean().default(true),
   includeTransactions: z.boolean().default(true),
-  includeSummary: z.boolean().default(true),
 });
+
+/**
+ * Escapes a value for CSV format
+ */
+function escapeCSV(value: string): string {
+  if (!value) return "";
+  if (value.includes(",") || value.includes('"') || value.includes("\n") || value.includes("\r")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Generates a standard transactions CSV
+ */
+function generateTransactionsCSV(transactions: Transaction[]): string {
+  const headers = [
+    "Date",
+    "Description",
+    "Vendor",
+    "Amount",
+    "Type",
+    "Account Number",
+    "Account Name",
+    "Source Document",
+    "Category",
+  ];
+
+  const rows: string[][] = [];
+  rows.push(headers);
+
+  for (const transaction of transactions) {
+    const accountNumber = transaction.reviewedAccountNumber || transaction.suggestedAccountNumber || "";
+    const accountName = transaction.reviewedAccountName || transaction.suggestedAccountName || "";
+
+    rows.push([
+      escapeCSV(transaction.date),
+      escapeCSV(transaction.description),
+      escapeCSV(transaction.vendor || ""),
+      transaction.amount.toFixed(2),
+      escapeCSV(transaction.type),
+      escapeCSV(accountNumber),
+      escapeCSV(accountName),
+      escapeCSV(transaction.documentName || ""),
+      escapeCSV(transaction.category || ""),
+    ]);
+  }
+
+  return rows.map((row) => row.join(",")).join("\r\n");
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { projectId, format, includeCoA, includeTransactions, includeSummary } = validation.data;
+    const { projectId, includeQBO, includeQBD, includeXero, includeTransactions } = validation.data;
 
     // Verify project ownership
     const project = await prisma.project.findFirst({
@@ -61,41 +104,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const files: { filename: string; content: string; contentType: string }[] = [];
+    const zip = new JSZip();
+    const sanitizedName = project.name.replace(/[^a-zA-Z0-9-_]/g, "_");
+    const date = new Date().toISOString().split("T")[0];
 
     // Get Chart of Accounts
-    let accounts: Account[] = [];
-    if (includeCoA) {
-      const coa = await prisma.chartOfAccounts.findFirst({
-        where: { projectId },
-      });
+    const coa = await prisma.chartOfAccounts.findFirst({
+      where: { projectId },
+    });
 
-      if (coa) {
-        accounts = coa.accounts as unknown as Account[];
+    const accounts = coa ? (coa.accounts as unknown as Account[]) : [];
 
-        const coaContent = format === "qbo"
-          ? generateQBOCSV(accounts)
-          : format === "qbd"
-            ? generateQBDIIF(accounts)
-            : generateXeroCSV(accounts);
+    if (accounts.length > 0) {
+      // Add QBO CSV if requested
+      if (includeQBO) {
+        const qboContent = generateQBOCSV(accounts);
+        zip.file(getQBOFilename(sanitizedName), qboContent);
+      }
 
-        const coaFilename = format === "qbo"
-          ? getQBOFilename(project.name)
-          : format === "qbd"
-            ? getQBDFilename(project.name)
-            : getXeroFilename(project.name);
+      // Add QBD IIF if requested
+      if (includeQBD) {
+        const qbdContent = generateQBDIIF(accounts);
+        zip.file(getQBDFilename(sanitizedName), qbdContent);
+      }
 
-        files.push({
-          filename: coaFilename,
-          content: coaContent,
-          contentType: format === "qbd" ? "text/plain" : "text/csv",
-        });
+      // Add Xero CSV if requested
+      if (includeXero) {
+        const xeroContent = generateXeroCSV(accounts);
+        zip.file(getXeroFilename(sanitizedName), xeroContent);
       }
     }
 
-    // Get Transactions
-    let transactions: Transaction[] = [];
-    if (includeTransactions || includeSummary) {
+    // Get Transactions if requested
+    if (includeTransactions) {
       const dbTransactions = await prisma.transaction.findMany({
         where: { projectId },
         include: {
@@ -109,79 +150,54 @@ export async function POST(request: NextRequest) {
         orderBy: { date: "desc" },
       });
 
-      transactions = dbTransactions.map((t) => ({
-        id: t.id,
-        date: t.date.toISOString().split("T")[0],
-        description: t.description,
-        amount: t.amount,
-        type: t.type as "debit" | "credit",
-        vendor: t.vendor,
-        documentId: t.documentId,
-        documentName: t.document.fileName,
-        category: t.document.category,
-        suggestedAccountNumber: t.suggestedAccountNumber,
-        suggestedAccountName: t.suggestedAccountName,
-        confidence: t.confidence,
-        isReviewed: t.isReviewed,
-        reviewedAccountNumber: t.reviewedAccountNumber,
-        reviewedAccountName: t.reviewedAccountName,
-      }));
+      if (dbTransactions.length > 0) {
+        const transactions: Transaction[] = dbTransactions.map((t) => ({
+          id: t.id,
+          date: t.date.toISOString().split("T")[0],
+          description: t.description,
+          amount: t.amount,
+          type: t.type as "debit" | "credit",
+          vendor: t.vendor,
+          documentId: t.documentId,
+          documentName: t.document.fileName,
+          category: t.document.category,
+          suggestedAccountNumber: t.suggestedAccountNumber,
+          suggestedAccountName: t.suggestedAccountName,
+          confidence: t.confidence,
+          isReviewed: t.isReviewed,
+          reviewedAccountNumber: t.reviewedAccountNumber,
+          reviewedAccountName: t.reviewedAccountName,
+        }));
+
+        const transactionsContent = generateTransactionsCSV(transactions);
+        zip.file(`${sanitizedName}_Transactions_${date}.csv`, transactionsContent);
+      }
     }
 
-    // Add transactions file
-    if (includeTransactions && transactions.length > 0) {
-      const transContent = format === "qbo"
-        ? generateQBOTransactionsCSV(transactions)
-        : format === "qbd"
-          ? generateQBDTransactionsIIF(transactions)
-          : generateXeroTransactionsCSV(transactions);
-
-      const transFilename = format === "qbo"
-        ? getQBOTransactionsFilename(project.name)
-        : format === "qbd"
-          ? getQBDTransactionsFilename(project.name)
-          : getXeroTransactionsFilename(project.name);
-
-      files.push({
-        filename: transFilename,
-        content: transContent,
-        contentType: format === "qbd" ? "text/plain" : "text/csv",
-      });
+    // Check if we have any files
+    const fileCount = Object.keys(zip.files).length;
+    if (fileCount === 0) {
+      return NextResponse.json(
+        { error: "No data to export. Please generate Chart of Accounts or extract transactions first." },
+        { status: 400 }
+      );
     }
 
-    // Add summary file
-    if (includeSummary && transactions.length > 0) {
-      const summaryContent = generateSummaryCSV(transactions);
-      const summaryFilename = getSummaryFilename(project.name);
+    // Generate ZIP file
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    const filename = `${sanitizedName}_Export_${date}.zip`;
 
-      files.push({
-        filename: summaryFilename,
-        content: summaryContent,
-        contentType: "text/csv",
-      });
-    }
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    const uint8Array = new Uint8Array(zipBuffer);
 
-    // If only one file, return it directly
-    if (files.length === 1) {
-      return new NextResponse(files[0].content, {
-        status: 200,
-        headers: {
-          "Content-Type": files[0].contentType,
-          "Content-Disposition": `attachment; filename="${files[0].filename}"`,
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-        },
-      });
-    }
-
-    // If multiple files, return as JSON with file contents
-    // (Client will handle downloading each file)
-    return NextResponse.json({
-      success: true,
-      files: files.map((f) => ({
-        filename: f.filename,
-        content: f.content,
-        contentType: f.contentType,
-      })),
+    return new NextResponse(uint8Array, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Content-Length": zipBuffer.length.toString(),
+      },
     });
   } catch (error) {
     console.error("Error exporting bundle:", error);
