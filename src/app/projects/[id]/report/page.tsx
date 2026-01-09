@@ -14,11 +14,12 @@ import {
   FileText,
   Package,
   RefreshCw,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import { WorkflowNav } from "@/components/workflow";
 import { ReportPreview } from "@/components/reports";
 import { useToast } from "@/components/ui/toast";
 import { OnboardingReport } from "@/types/report";
@@ -33,6 +34,15 @@ interface Project {
   _count?: {
     documents: number;
   };
+}
+
+interface DownloadOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  format: string;
+  icon: React.ReactNode;
 }
 
 const INDUSTRY_OPTIONS = [
@@ -62,6 +72,44 @@ export default function ReportPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>("general");
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // Download options
+  const downloadOptions: DownloadOption[] = [
+    {
+      id: "qbo",
+      title: "Chart of Accounts",
+      subtitle: "QuickBooks Online",
+      description: "Ready-to-import CSV file for QBO",
+      format: ".csv",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+    },
+    {
+      id: "qbd",
+      title: "Chart of Accounts",
+      subtitle: "QuickBooks Desktop",
+      description: "Ready-to-import IIF file for QBD",
+      format: ".iif",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+    },
+    {
+      id: "xero",
+      title: "Chart of Accounts",
+      subtitle: "Xero",
+      description: "Ready-to-import CSV file for Xero",
+      format: ".csv",
+      icon: <FileSpreadsheet className="h-6 w-6" />,
+    },
+    {
+      id: "report",
+      title: "Onboarding Report",
+      subtitle: "PDF Document",
+      description: "Summary with gaps & recommendations",
+      format: ".pdf",
+      icon: <FileText className="h-6 w-6" />,
+    },
+  ];
 
   // Load project data
   useEffect(() => {
@@ -158,47 +206,111 @@ export default function ReportPage() {
     }
   };
 
-  // Export handlers
-  const handleExportCoA = async (format: "qbo" | "qbd" | "xero") => {
-    try {
-      const response = await fetch("/api/coa/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, format }),
-      });
+  // Handle individual download
+  const handleDownload = async (optionId: string) => {
+    setDownloadingId(optionId);
 
-      if (!response.ok) {
-        throw new Error("Failed to export");
+    try {
+      let response: Response;
+      let filename: string;
+
+      if (optionId === "report") {
+        // Download PDF report
+        response = await fetch(`/api/reports/onboarding?projectId=${projectId}&format=pdf`);
+        filename = `${project?.businessName || "Client"}_Onboarding_Report.pdf`;
+      } else {
+        // Download CoA export
+        response = await fetch(`/api/export/${optionId}/${projectId}`);
+        const ext = optionId === "qbd" ? "iif" : "csv";
+        filename = `${project?.businessName || "CoA"}_${optionId.toUpperCase()}.${ext}`;
       }
 
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = `chart-of-accounts.${format === "qbd" ? "iif" : "csv"}`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      setDownloadedIds((prev) => new Set([...prev, optionId]));
+
+      const option = downloadOptions.find((o) => o.id === optionId);
       addToast({
-        title: "Export Complete",
-        message: `Downloaded ${filename}`,
+        title: "Download Complete",
+        message: `${option?.title} (${option?.subtitle}) downloaded`,
         variant: "success",
       });
     } catch (err) {
+      console.error("Download error:", err);
       addToast({
-        title: "Export Failed",
-        message: "Failed to export Chart of Accounts",
+        title: "Download Failed",
+        message: err instanceof Error ? err.message : "Failed to download",
         variant: "error",
       });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // Handle download all
+  const handleDownloadAll = async () => {
+    setDownloadingId("all");
+
+    try {
+      const response = await fetch("/api/export/bundle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          includeQBO: true,
+          includeQBD: true,
+          includeXero: true,
+          includeTransactions: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create bundle");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project?.businessName || "Client"}_Export_Bundle.zip`.replace(/[^a-zA-Z0-9._-]/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Also download the PDF report separately (not in ZIP)
+      await handleDownload("report");
+
+      setDownloadedIds(new Set(["qbo", "qbd", "xero", "report"]));
+
+      addToast({
+        title: "Bundle Downloaded",
+        message: "All files downloaded successfully",
+        variant: "success",
+      });
+    } catch (err) {
+      console.error("Bundle download error:", err);
+      addToast({
+        title: "Download Failed",
+        message: err instanceof Error ? err.message : "Failed to download bundle",
+        variant: "error",
+      });
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -226,13 +338,8 @@ export default function ReportPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-semibold text-sm">
-            5
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Report & Chart of Accounts</h1>
-        </div>
-        <p className="text-gray-500 ml-11">
+        <h1 className="text-2xl font-bold text-gray-900">Report & Chart of Accounts</h1>
+        <p className="text-gray-500 mt-1">
           Generate final deliverables for client onboarding
         </p>
       </div>
@@ -368,7 +475,7 @@ export default function ReportPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-600" />
+            <Sparkles className="h-5 w-5 text-teal-600" />
             Generate Chart of Accounts & Report
           </CardTitle>
         </CardHeader>
@@ -414,14 +521,115 @@ export default function ReportPage() {
         </CardContent>
       </Card>
 
-      {/* Chart of Accounts Preview & Export */}
+      {/* Download Section - 4 Individual Options */}
+      {hasCoA && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-teal-600" />
+              Download Files
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Individual Download Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {downloadOptions.map((option) => {
+                const isDownloading = downloadingId === option.id;
+                const isDownloaded = downloadedIds.has(option.id);
+
+                return (
+                  <div
+                    key={option.id}
+                    className={cn(
+                      "relative flex items-center justify-between p-4 border rounded-lg transition-all",
+                      isDownloaded && "ring-2 ring-emerald-500 ring-offset-2",
+                      "hover:bg-gray-50"
+                    )}
+                  >
+                    {isDownloaded && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-lg",
+                          option.id === "report"
+                            ? "bg-amber-100 text-amber-600"
+                            : "bg-teal-100 text-teal-600"
+                        )}
+                      >
+                        {option.icon}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{option.title}</p>
+                        <p className="text-sm text-gray-500">
+                          {option.subtitle} <span className="text-gray-400">({option.format})</span>
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownload(option.id)}
+                      disabled={downloadingId !== null}
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Download All */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100 text-teal-600">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Download All Files</p>
+                    <p className="text-sm text-gray-500">
+                      Get all 4 files at once
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleDownloadAll}
+                  disabled={downloadingId !== null}
+                >
+                  {downloadingId === "all" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download All
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart of Accounts Preview */}
       {hasCoA && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
-                Chart of Accounts
+                <FileSpreadsheet className="h-5 w-5 text-teal-600" />
+                Chart of Accounts Preview
               </span>
               <span className="text-sm font-normal text-gray-500">
                 {coa.accounts.length} accounts
@@ -429,8 +637,7 @@ export default function ReportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Account List Preview */}
-            <div className="max-h-64 overflow-y-auto mb-4 border rounded-lg">
+            <div className="max-h-64 overflow-y-auto border rounded-lg">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
@@ -457,22 +664,6 @@ export default function ReportPage() {
                 </tbody>
               </table>
             </div>
-
-            {/* Export Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={() => handleExportCoA("qbo")}>
-                <Download className="h-4 w-4 mr-2" />
-                QuickBooks Online (CSV)
-              </Button>
-              <Button variant="outline" onClick={() => handleExportCoA("qbd")}>
-                <Download className="h-4 w-4 mr-2" />
-                QuickBooks Desktop (IIF)
-              </Button>
-              <Button variant="outline" onClick={() => handleExportCoA("xero")}>
-                <Download className="h-4 w-4 mr-2" />
-                Xero (CSV)
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -482,8 +673,8 @@ export default function ReportPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-indigo-600" />
-              Onboarding Report
+              <ClipboardList className="h-5 w-5 text-teal-600" />
+              Onboarding Report Preview
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -501,40 +692,6 @@ export default function ReportPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* All-in-One Export */}
-      {hasCoA && report && (
-        <Card className="border-indigo-200 bg-indigo-50">
-          <CardContent className="py-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
-                  <Package className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">Download All</h3>
-                  <p className="text-sm text-gray-600">
-                    Get Chart of Accounts + Onboarding Report in one package
-                  </p>
-                </div>
-              </div>
-              <Button onClick={() => {
-                handleExportCoA("qbo");
-                // The report download is handled by ReportPreview component
-              }}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Bundle
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Workflow Navigation */}
-      <WorkflowNav
-        projectId={projectId}
-        currentStep="report"
-      />
     </div>
   );
 }
